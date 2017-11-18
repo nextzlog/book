@@ -15,5 +15,5 @@
 ## usage
 
 ```
-$ java -jar build/libs/mine.jar (LR|KNN|DT|GMM|NBC|LDA|MLP|GD1|GD2|SVM)
+$ java -jar build/libs/mine.jar (LR|KNN|DT|GMM|NBC|LDA|MLP|SVM)
 ```
