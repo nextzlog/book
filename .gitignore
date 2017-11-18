@@ -3,6 +3,7 @@ build/*
 !build/libs
 *.svg
 *.eps
+*.dat
 
 *.swp
 .DS_Store
