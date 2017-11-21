@@ -1,15 +1,12 @@
 import numpy as np
-import matplotlib as mpl
-mpl.use('Agg')
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.cm as cm
 import matplotlib.pylab as plt
-import math
 import sys
 
 plt.rcParams['font.family'] = 'monospace'
-
 fig = plt.figure()
-
 if int(sys.argv[1]) == 1:
 	ax = fig.add_subplot(111, aspect='equal')
 	data = map(lambda sgd: np.loadtxt('%s.dat' % sgd, delimiter=','), sys.argv[2:])
@@ -38,7 +35,6 @@ if int(sys.argv[1]) == 1:
 	plt.legend(loc='lower right', markerscale=2, labelspacing=.5, borderpad=.8, handletextpad=.5)
 	plt.savefig('plot1.svg', bbox_inches='tight', pad_inches=0.1)
 	plt.savefig('plot1.eps', bbox_inches='tight', pad_inches=0.1)
-
 else:
 	loss = np.array(map(lambda sgd: np.loadtxt('%s.dat' % sgd, delimiter=','), sys.argv[2:]))
 	lmax = 0.45
