@@ -14,6 +14,11 @@ class Sigmoid extends Active {
 	def bp(z: Seq[Double]) = fp(z).map(y=>y*(1-y))
 }
 
+class Softmax extends Active {
+	def fp(z: Seq[Double]) = z.map(math.exp(_)/z.map(math.exp).sum)
+	def bp(z: Seq[Double]) = z.map(_=>1.0)
+}
+
 trait Neural {
 	val dim: Int
 	def apply(x: Seq[Double]): Seq[Double]
@@ -45,24 +50,37 @@ class Offset(val dim: Int, act: Active, next: Neural, sgd: ()=>SGD) extends Neur
 }
 
 object MLP {
-	val range = -1.0 to 2.0 by 0.005
-	val data1 = for(x<-0 to 1;y<-0 to 1) yield Seq[Double](x,y)->(x|y)
-	val data2 = for(x<-0 to 1;y<-0 to 1) yield Seq[Double](x,y)->(x^y)
+	val data1 = for(x<-0 to 1;y<-0 to 1) yield (x,y,x|y)
+	val data2 = for(x<-0 to 1;y<-0 to 1) yield (x,y,x^y)
+	val data3 = Seq((0,1,0), (1,0,1), (0,-1,2), (-1,0,3))
 	def main() {
-		val neuron3 = new Output(1, _-_)
-		val neuron0 = new Offset(2, new Sigmoid, neuron3, ()=>new PlainSGD)
-		val neuron2 = new Neuron(3, new Sigmoid, neuron3, ()=>new PlainSGD)
-		val neuron1 = new Neuron(2, new Sigmoid, neuron2, ()=>new PlainSGD)
-		val offset2 = new Offset(3, new Sigmoid, neuron3, ()=>new PlainSGD)
+		val binary3 = new Output(1, _-_)
+		val binary0 = new Offset(2, new Sigmoid, binary3, ()=>new PlainSGD)
+		val binary2 = new Neuron(3, new Sigmoid, binary3, ()=>new PlainSGD)
+		val binary1 = new Neuron(2, new Sigmoid, binary2, ()=>new PlainSGD)
+		val offset2 = new Offset(3, new Sigmoid, binary3, ()=>new PlainSGD)
 		val offset1 = new Offset(2, new Sigmoid, offset2, ()=>new PlainSGD)
-		test(neuron0, 0, data1)
-		test(neuron1, 1, data2)
-		test(offset1, 2, data2)
+		binary(binary0, 0, data1)
+		binary(binary1, 1, data2)
+		binary(offset1, 2, data2)
+		val select3 = new Output(4, _-_)
+		val select2 = new Offset(3, new Softmax, select3, ()=>new PlainSGD)
+		val select1 = new Offset(2, new Sigmoid, select2, ()=>new PlainSGD)
+		select(select1, 3, data3, data3.size)
 	}
-	def test(model: Neural, num: Int, data: Seq[(Seq[Double], Int)]) {
-		for(n<-1 to 500000; (x,t)<-data) model(x, Seq(t))
+	def binary(model: Neural, num: Int, data: Seq[(Int,Int,Int)]) {
+		val range = -1.0 to 2.0 by 0.005
+		for(n<-1 to 500000; (x,y,t)<-data) model(Seq(x,y), Seq(t))
 		val out = new PrintStream("dist.dat")
 		for(y <- range) out.println(range.map(x => model(Seq(x, y)).head).mkString(","))
+		out.close
+		(s"python src/main/python/MLP.py $num" #&& "rm dist.dat" #&& s"open plot$num.svg" !)
+	}
+	def select(model: Neural, num: Int, data: Seq[(Int,Int,Int)], D: Int) {
+		val range = -2.0 to 2.0 by 0.005
+		for(n<-1 to 100000; (x,y,t)<-data) model(Seq(x,y), Seq.tabulate(D)(d=>if(t==d) 1 else 0))
+		val out = new PrintStream("dist.dat")
+		for(y <- range) out.println(range.map(x => model(Seq(x, y)).zipWithIndex.maxBy(_._1)._2).mkString(","))
 		out.close
 		(s"python src/main/python/MLP.py $num" #&& "rm dist.dat" #&& s"open plot$num.svg" !)
 	}

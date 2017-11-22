@@ -27,5 +27,5 @@ for land in filter(lambda p:'Claimed by Japan' in p.attributes['NOTE_BRK'], inva
 		ax.add_geometries(pref.geometry, crs=ccrs.PlateCarree(), facecolor=prefs['Hokkaido'], edgecolor='black', lw=1)
 	else:
 		ax.add_geometries(pref.geometry, crs=ccrs.PlateCarree(), facecolor=prefs['Shimane'], edgecolor='black', lw=1)
-plt.savefig('plot%i.svg' % int(sys.argv[1]), bbox_inches='tight', pad_inches=0.1)
-plt.savefig('plot%i.eps' % int(sys.argv[1]), bbox_inches='tight', pad_inches=0.1)
+plt.savefig('plot%i.svg' % int(sys.argv[1]), bbox_inches='tight', pad_inches=0)
+plt.savefig('plot%i.eps' % int(sys.argv[1]), bbox_inches='tight', pad_inches=0)

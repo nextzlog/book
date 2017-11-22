@@ -7,7 +7,6 @@ object Main {
 		case "KNN" => KNN.main()
 		case "LDA" => LDA.main()
 		case "LR"  => LR.main()
-		case "MCC" => MCC.main()
 		case "MLP" => MLP.main()
 		case "NBC" => NBC.main()
 		case "SGD" => SGD.main()
