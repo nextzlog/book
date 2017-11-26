@@ -1,8 +1,6 @@
 package apps
 
 import java.io.PrintStream
-import scala.language.postfixOps
-import scala.sys.process._
 
 trait Active {
 	def fp(z: Seq[Double]): Seq[Double]
@@ -70,11 +68,11 @@ object MLP {
 	}
 	def binary(model: Neural, num: Int, data: Seq[(Int,Int,Int)]) {
 		val range = -1.0 to 2.0 by 0.005
-		for(n<-1 to 500000; (x,y,t)<-data) model(Seq(x,y), Seq(t))
+		for(n<-1 to 200000; (x,y,t)<-data) model(Seq(x,y), Seq(t))
 		val out = new PrintStream("dist.dat")
 		for(y <- range) out.println(range.map(x => model(Seq(x, y)).head).mkString(","))
 		out.close
-		(s"python src/main/python/MLP.py $num" #&& "rm dist.dat" #&& s"open plot$num.svg" !)
+		exec.Python.run("MLP", num)
 	}
 	def select(model: Neural, num: Int, data: Seq[(Int,Int,Int)], D: Int) {
 		val range = -2.0 to 2.0 by 0.005
@@ -82,6 +80,6 @@ object MLP {
 		val out = new PrintStream("dist.dat")
 		for(y <- range) out.println(range.map(x => model(Seq(x, y)).zipWithIndex.maxBy(_._1)._2).mkString(","))
 		out.close
-		(s"python src/main/python/MLP.py $num" #&& "rm dist.dat" #&& s"open plot$num.svg" !)
+		exec.Python.run("MLP", num)
 	}
 }

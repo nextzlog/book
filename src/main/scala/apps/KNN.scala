@@ -2,8 +2,6 @@ package apps
 
 import java.io.PrintStream
 import scala.collection.mutable.ArrayBuffer
-import scala.language.postfixOps
-import scala.sys.process._
 
 class KNN[D,T](k: Int, data: Seq[(D,T)], d: (D,D)=>Double) {
 	def apply(x: D) = data.sortBy(s=>d(x,s._1)).take(k).groupBy(_._2).maxBy(_._2.size)._1
@@ -48,6 +46,6 @@ object KNN {
 			for(y <- range) out.println(range.map(x => knn(Seq(x, y))).mkString(","))
 			out.close
 		}
-		(s"python src/main/python/KNN.py" #&& "rm class.dat data0.dat data1.dat data2.dat" #&& "open plot.svg" !)
+		exec.Python.run("KNN")
 	}
 }

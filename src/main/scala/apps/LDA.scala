@@ -2,8 +2,6 @@ package apps
 
 import java.io.PrintStream
 import scala.io.Source
-import scala.language.postfixOps
-import scala.sys.process._
 
 class LDA[W,D](docs: Map[D, Seq[W]], K: Int, a: Double = 0.1, b: Double = 0.01) {
 	case class Word(v: W, var z: Int = util.Random.nextInt(K))
@@ -35,7 +33,7 @@ object LDA {
 			val out = new PrintStream(s"pref$k.dat")
 			for((pref,words) <- prefs) out.println("%s,%s".format(pref, this(pref)))
 			out.close
-			s"python2 src/main/python/LDA.py $k" #&& s"rm pref$k.dat" !
+			exec.Python.run("LDA", k)
 		}
 	}
 }

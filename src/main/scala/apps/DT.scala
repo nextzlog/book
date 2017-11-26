@@ -2,8 +2,6 @@ package apps
 
 import java.io.PrintStream
 import scala.collection.mutable.ArrayBuffer
-import scala.language.postfixOps
-import scala.sys.process._
 
 trait Node[T] {
 	def apply(x: Seq[Int]): T
@@ -103,6 +101,6 @@ object DT {
 			for(y <- range) out.println(range.map(x => root(Seq(x, y))).mkString(","))
 			out.close
 		}
-		(s"python src/main/python/DT.py $id" #&& "rm class.dat data0.dat data1.dat data2.dat" #&& s"open plot.$id.svg" !)
+		exec.Python.run("DT", id)
 	}
 }

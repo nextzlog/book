@@ -2,8 +2,6 @@ package apps
 
 import java.io.PrintStream
 import scala.io.Source
-import scala.language.postfixOps
-import scala.sys.process._
 
 class NaiveBayes[W,C](docs: Seq[Seq[W]], cats: Seq[C]) {
 	val V = docs.flatten.toSet
@@ -40,13 +38,13 @@ object NBC {
 			val out = new PrintStream("pref.dat")
 			for((pref,words) <- prefs) out.println("%s,%s".format(pref, this(words)))
 			out.close
-			"python2 src/main/python/NBC.py 2" #&& "rm pref.dat" !
+			exec.Python.run("NBC", 2)
 		}
 		val nb8 = new NaiveBayes(area8.map(_._2), area8.map(_._1)) {
 			val out = new PrintStream("pref.dat")
 			for((pref,words) <- prefs) out.println("%s,%s".format(pref, this(words)))
 			out.close
-			"python2 src/main/python/NBC.py 8" #&& "rm pref.dat" !
+			exec.Python.run("NBC", 8)
 		}
 	}
 }

@@ -10,6 +10,8 @@ dependencies {
 	compile fileTree(dir: 'lib', include: '*.jar')
 }
 
+sourceSets.main.resources.srcDirs += 'src/main/python'
+
 compileScala {options.encoding = 'UTF-8'}
 
 jar {

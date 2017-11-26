@@ -2,8 +2,6 @@ package apps
 
 import java.io.PrintStream
 import scala.collection.mutable.ArrayBuffer
-import scala.language.postfixOps
-import scala.sys.process._
 
 class SVM(X: Seq[(Seq[Double],Int)], C: Double, k: (Seq[Double],Seq[Double])=>Double) {
 	val data = X.map(Data.tupled)
@@ -92,6 +90,6 @@ object SVM {
 		val out2 = new PrintStream("dense.dat")
 		for(y <- range) out2.println(range.map(x => svm(Seq(x, y))).mkString(","))
 		out2.close
-		(s"python src/main/python/SVM.py $num" #&& "rm dense.dat data0.dat data1.dat" #&& s"open plot$num.svg" !)
+		exec.Python.run("SVG", num)
 	}
 }

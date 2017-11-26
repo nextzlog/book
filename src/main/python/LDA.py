@@ -1,10 +1,11 @@
+import os,sys
+import webbrowser
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pylab as plt
 import cartopy.crs as ccrs
 import cartopy.io.shapereader as shp
-import sys
 
 plt.rcParams['font.family'] = 'monospace'
 fig = plt.figure(figsize=(10.4,7.8), dpi=80)
@@ -28,3 +29,5 @@ for land in filter(lambda p:'Claimed by Japan' in p.attributes['NOTE_BRK'], inva
 		ax.add_geometries(pref.geometry, crs=ccrs.PlateCarree(), facecolor=colors[int(prefs['Shimane'])], edgecolor='black', lw=1)
 plt.savefig('plot%i.svg' % int(sys.argv[1]), bbox_inches='tight', pad_inches=0)
 plt.savefig('plot%i.eps' % int(sys.argv[1]), bbox_inches='tight', pad_inches=0)
+os.remove('pref.dat')
+webbrowser.open('file://%s' % os.path.realpath('plot%i.svg' % int(sys.argv[1])))

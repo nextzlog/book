@@ -1,8 +1,6 @@
 package apps
 
 import java.io._
-import scala.sys.process._
-import scala.language.postfixOps
 
 class Kmeans(X: Seq[Seq[Double]], K: Int, d: (Seq[Double],Seq[Double])=>Double) {
 	val M = Array.fill(K, X.map(_.size).min)(Math.random)
@@ -64,7 +62,7 @@ object GMM {
 			for(d <- data if km(d) == k) out.println(d.mkString(","));
 			out.close
 		}
-		"python src/main/python/GMM.py KM" #&& "open plot0.svg" !
+		exec.Python.run("GMM", "KM")
 		val em = new EM(data.map(_.toSeq).toSeq, K)
 		util.Try {
 			val out = new PrintStream("train.dat");
@@ -86,7 +84,6 @@ object GMM {
 			for(d <- data if em(d) == k) out.println(d.mkString(","))
 			out.close
 		}
-		val reverse = if(em(data.head) == km(data.head)) "approve" else "reverse"
-		s"python src/main/python/GMM.py EM $reverse" #&& "rm train.dat dense.dat mixt0.dat mixt1.dat cents.dat" #&& "open plot1.svg plot2.svg" !
+		exec.Python.run("GMM", "EM", if(em(data.head) == km(data.head)) "approve" else "reverse")
 	}
 }

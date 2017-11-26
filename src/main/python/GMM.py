@@ -1,9 +1,10 @@
+import os,sys
+import webbrowser
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.cm as cm
 import matplotlib.pylab as plt
-import sys
 
 plt.rcParams['font.family'] = 'monospace'
 fig = plt.figure()
@@ -24,6 +25,7 @@ if sys.argv[1] == 'KM':
 	ax.scatter([cents[1,0]], [cents[1,1]], marker='o', facecolor=C1, edgecolor='black', lw=2, s=30)
 	plt.savefig('plot0.svg', bbox_inches='tight', pad_inches=0.1)
 	plt.savefig('plot0.eps', bbox_inches='tight', pad_inches=0.1)
+	webbrowser.open('file://%s' % os.path.realpath('plot0.svg'))
 
 else:
 	mixt0 = np.loadtxt('mixt0.dat', delimiter=',')
@@ -63,3 +65,10 @@ else:
 	ax.scatter([cents[1,0]], [cents[1,1]], marker='o', facecolor=C1, edgecolor='black', lw=2, s=30)
 	plt.savefig('plot2.svg', bbox_inches='tight', pad_inches=0.1)
 	plt.savefig('plot2.eps', bbox_inches='tight', pad_inches=0.1)
+	os.remove('train.dat')
+	os.remove('dense.dat')
+	os.remove('mixt0.dat')
+	os.remove('mixt1.dat')
+	os.remove('cents.dat')
+	webbrowser.open('file://%s' % os.path.realpath('plot1.svg'))
+	webbrowser.open('file://%s' % os.path.realpath('plot2.svg'))

@@ -1,9 +1,10 @@
+import os,sys
+import webbrowser
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pylab as plt
 from matplotlib.colors import LinearSegmentedColormap
-import sys
 
 plt.rcParams['font.family'] = 'monospace'
 fig = plt.figure()
@@ -31,3 +32,8 @@ plt.ylabel("")
 plt.grid()
 plt.savefig('plot.svg', bbox_inches='tight', pad_inches=0.1)
 plt.savefig('plot.eps', bbox_inches='tight', pad_inches=0.1)
+os.remove('class.dat')
+os.remove('data0.dat')
+os.remove('data1.dat')
+os.remove('data2.dat')
+webbrowser.open('file://%s' % os.path.realpath('plot.svg'))

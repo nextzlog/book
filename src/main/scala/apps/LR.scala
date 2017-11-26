@@ -1,8 +1,6 @@
 package apps
 
 import java.io.PrintStream
-import scala.language.postfixOps
-import scala.sys.process._
 
 class LR(e: Double, XY: Seq[(Double, Double)], p: Seq[Double=>Double]) {
 	val w = Array.fill[Double](p.size)(0)
@@ -19,6 +17,6 @@ object LR {
 		val out = new PrintStream(s"dist.dat")
 		for((x,y) <- data) out.println("%f,%f".format(x,y))
 		out.close
-		(s"""python src/main/python/LR.py ${lr.w.mkString(" ")}""" #&& "rm dist.dat" #&& "open plot.svg" !)
+		exec.Python.run("LR", lr.w:_*)
 	}
 }
