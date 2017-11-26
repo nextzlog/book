@@ -33,7 +33,7 @@ class EM(X: Seq[Seq[Double]], K: Int) {
 		}
 		X.map(x=>math.log(gmm(x).sum)).sum
 	}
-	for(step <- 1 to 100) println(mstep(X.map(gmm(_)).map(p=>p.map(_/p.sum)).transpose))
+	for(step <- 1 to 100) mstep(X.map(gmm(_)).map(p=>p.map(_/p.sum)).transpose)
 }
 
 object GMM {

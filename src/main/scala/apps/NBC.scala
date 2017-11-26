@@ -4,12 +4,10 @@ import java.io.PrintStream
 import scala.io.Source
 
 class NaiveBayes[W,C](docs: Seq[Seq[W]], cats: Seq[C]) {
-	val V = docs.flatten.toSet
-	val P = cats.groupBy(c=>c).map{case(c,s)=>c->s.size.toDouble/docs.size}
-	import scala.collection.mutable.Map
-	val N = Map[(W,C),Double]().withDefaultValue(0)
-	for((d,c)<-(docs,cats).zipped;w<-d) N(w,c) += 1
-	def Pwc(w: W, c: C) = (N(w,c)+1) / V.map(N(_,c)+1).sum
+	val N = scala.collection.mutable.Map[(W,C),Double]().withDefaultValue(0)
+	val P = cats.groupBy(c=>c).map{case (c,s)=>c->s.size.toDouble/docs.size}
+	for((d,c)<-(docs,cats).zipped; w<-d) N(w,c) += 1
+	def Pwc(w: W, c: C) = (N(w,c)+1) / docs.flatten.distinct.map(N(_,c)+1).sum
 	def Pcd(c: C, d: Seq[W]) = math.log(P(c)) + d.map(w=>math.log(Pwc(w,c))).sum
 	def apply(d: Seq[W]) = cats.distinct.maxBy(Pcd(_, d))
 }

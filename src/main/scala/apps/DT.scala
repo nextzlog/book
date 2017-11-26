@@ -27,8 +27,8 @@ case class Division[T](Y: Seq[(Seq[Int], T)], axis: Int, value: Int) extends Nod
 	def apply(x: Seq[Int]) = if(x(axis) >= value) sn1(x) else sn2(x)
 }
 
-case class Ensemble[T](Y: Seq[(Seq[Int], T)], M: Int, N: Int) extends Node[T] {
-	val t = Seq.fill(M)(Question(Seq.fill(N)(Y(util.Random.nextInt(Y.size)))))
+case class Bagging[T](Y: Seq[(Seq[Int], T)], T: Int, N: Int) extends Node[T] {
+	val t = Seq.fill(T)(Question(Seq.fill(N)(Y(util.Random.nextInt(Y.size)))))
 	def apply(x: Seq[Int]) = t.map(_(x)).groupBy(identity).maxBy(_._2.size)._1
 }
 
@@ -42,19 +42,18 @@ case class Resample[T](Y: Seq[(Seq[Int], T)], P: Seq[Double]) extends Node[T] {
 }
 
 case class AdaStage[T](Y: Seq[(Seq[Int], T)], P: Seq[Double], M: Int) extends Node[T] {
-	val elite = List.fill(M)(Resample(Y, P.map(_ / P.sum))).minBy(_.error)
-	val W = math.log((1 / elite.error - 1) * (Y.map(_._2).toSet.size - 1))
-	def valid = elite.error < 0.5
-	def apply(x: Seq[Int]) = elite(x)
-	def apply(x: Seq[Int], y: T): Double = if(elite(x) == y) W else 0
-	val trail = Y.zip(P).map{case ((x, y), p) => p * math.exp(W - this(x, y))}
+	val best = List.fill(M)(Resample(Y, P.map(_ / P.sum))).minBy(_.error)
+	val W = math.log((1 / best.error - 1) * (Y.map(_._2).toSet.size - 1))
+	def isOK = best.error < 0.5
+	def apply(x: Seq[Int]) = best(x)
+	def apply(x: Seq[Int], y: T): Double = if(best(x) == y) W else 0
+	val next = Y.zip(P).map{case ((x, y), p) => p * math.exp(W - this(x, y))}
 }
 
 case class AdaBoost[T](Y: Seq[(Seq[Int], T)], M: Int) extends Node[T] {
-	val stages = List(AdaStage(Y, Y.map(_ => 1.0 / Y.size), M)).toBuffer
-	while(stages.last.valid) stages += AdaStage(Y, stages.last.trail, M)
-	if(stages.size > 1) stages.trimEnd(1)
-	def apply(x: Seq[Int], y: T): Double = stages.map(_(x, y)).sum
+	val stages = Seq(AdaStage(Y, Y.map(_ => 1.0 / Y.size), M)).toBuffer
+	while(stages.last.isOK) stages += AdaStage(Y, stages.last.next, M)
+	def apply(x: Seq[Int], y: T): Double = stages.init.map(_(x, y)).sum
 	def apply(x: Seq[Int]) = Y.map(_._2).distinct.maxBy(this(x, _))
 }
 
@@ -77,7 +76,7 @@ object DT {
 		}
 		val K = 50
 		test(s"plain", Question(data), data)
-		test(s"bag$K", Ensemble(data, K, size / 5), data)
+		test(s"bag$K", Bagging (data, K, size / 5), data)
 		test(s"ada$K", AdaBoost(data, K), data)
 	}
 	def test(id: String, root: Node[Int], data: Seq[(Seq[Int], Int)]) {

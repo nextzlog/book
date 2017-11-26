@@ -20,7 +20,7 @@ class Softmax extends Active {
 trait Neural {
 	val dim: Int
 	def apply(x: Seq[Double]): Seq[Double]
-	def apply(x: Seq[Double], e: Seq[Double]): Seq[Double]
+	def apply(x: Seq[Double], t: Seq[Double]): Seq[Double]
 }
 
 class Output(val dim: Int = 1, loss: (Double,Double)=>Double = _-_) extends Neural {

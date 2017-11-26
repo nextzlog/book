@@ -11,8 +11,7 @@ class PlainSGD(e: Double = 0.01) extends SGD {
 }
 
 class AdaDelta(r: Double = 0.95, e: Double = 1e-8) extends SGD {
-	var eW = 0.0
-	var eE = 0.0
+	var eW,eE = 0.0
 	def update(E: Double) = {
 		this.eE = r*eE + (1-r) * math.pow(1*E, 2)
 		val n = math.sqrt(eW+e) / math.sqrt(eE+e)
