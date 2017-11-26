@@ -37,7 +37,7 @@ $ java -jar build/libs/mine.jar GMM
 $ java -jar build/libs/mine.jar NBC
 ```
 
-### latent Dirichlet allocation (LDA)
+### latent Dirichlet allocation
 
 ```
 $ java -jar build/libs/mine.jar LDA
@@ -49,7 +49,7 @@ $ java -jar build/libs/mine.jar LDA
 $ java -jar build/libs/mine.jar MLP
 ```
 
-### stochastic gradient descent & AdaDelta
+### stochastic gradient descent
 
 ```
 $ java -jar build/libs/mine.jar SGD
