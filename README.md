@@ -2,7 +2,6 @@
 ## Scala’s Pattern Recognition & Machine Learning
 
 - sample codes of machine learning models and algorithms on Scala
-- from linear regression to neural network and support vector machine
 
 ## details
 
@@ -14,6 +13,50 @@
 
 ## usage
 
+### linear regression
+
 ```
-$ java -jar build/libs/mine.jar (LR|KNN|DT|GMM|NBC|LDA|MLP|SVM)
+$ java -jar build/libs/mine.jar LR
+```
+
+### k nearest neighbors
+
+```
+$ java -jar build/libs/mine.jar KNN
+```
+
+### k-means & EM algorithm
+
+```
+$ java -jar build/libs/mine.jar GMM
+```
+
+### naive Bayes classifier
+
+```
+$ java -jar build/libs/mine.jar NBC
+```
+
+### latent Dirichlet allocation (LDA)
+
+```
+$ java -jar build/libs/mine.jar LDA
+```
+
+### multiple layer perceptron
+
+```
+$ java -jar build/libs/mine.jar MLP
+```
+
+### stochastic gradient descent & AdaDelta
+
+```
+$ java -jar build/libs/mine.jar SGD
+```
+
+### support vector machine & kernel trick
+
+```
+$ java -jar build/libs/mine.jar SVM
 ```

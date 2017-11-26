@@ -1,10 +1,11 @@
+import os,sys
+import webbrowser
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.cm as cm
 import matplotlib.pylab as plt
 from matplotlib import ticker
-import sys
 
 plt.rcParams['font.family'] = 'monospace'
 fig = plt.figure()

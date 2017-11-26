@@ -90,6 +90,6 @@ object SVM {
 		val out2 = new PrintStream("dense.dat")
 		for(y <- range) out2.println(range.map(x => svm(Seq(x, y))).mkString(","))
 		out2.close
-		exec.Python.run("SVG", num)
+		exec.Python.run("SVM", num)
 	}
 }
