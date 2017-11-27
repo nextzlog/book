@@ -5,16 +5,18 @@ repositories {
 }
 
 dependencies {
-	compile 'org.scala-lang:scala-library:2.12.+'
-	compile 'org.scala-lang.modules:scala-xml_2.12:+'
-	compile fileTree(dir: 'lib', include: '*.jar')
+	implementation 'org.scala-lang:scala-library:2.12.+'
 }
 
 sourceSets.main.resources.srcDirs += 'src/main/python'
 
-compileScala {options.encoding = 'UTF-8'}
+compileScala {
+	options.encoding = 'UTF-8'
+}
 
 jar {
 	manifest.attributes 'Main-Class': 'Main'
-	from configurations.compile.collect{it.isDirectory() ? it : zipTree(it)}
+	from configurations.compileClasspath.collect {
+		it.isDirectory()? it: zipTree(it)
+	}
 }

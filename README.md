@@ -1,62 +1,66 @@
-# Scalaで実装するパターン認識と機械学習
-## Scala’s Pattern Recognition & Machine Learning
+Scala's Pattern Recognition and Machine Learning
+====
 
-- sample codes of machine learning models and algorithms on Scala
+![image](https://img.shields.io/badge/Java-SE13-red.svg)
+![image](https://img.shields.io/badge/Scala-2.12-orange.svg)
+![image](https://img.shields.io/badge/Gradle-6-orange.svg)
+![image](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)
 
-## details
+sample codes of machine learning models and algorithms written in Scala, for the educational purpose in data science.
 
-- see http://pafelog.net/mine.pdf
+## Features
 
-## build
+- linear regression
+- k-nearest neighbors
+- k-means & EM algorithm
+- naive Bayes classifier
+- latent Dirichlet allocation
+- multiple layer perceptron
+- stochastic gradient descent
+- support vector machine & kernel trick
 
-`$ gradle build`
+## Dependencies
 
-## usage
+- Python2.7
+- matplotlib
+- cartopy
+- geos
 
-### linear regression
+## Documents
 
-```
+- [Scalaで実装するパターン認識と機械学習 (PDF)](https://pafelog.net/mine.pdf) [(HTML)](https://pafelog.net/mine.html)
+
+## Usage
+
+- Just run the following commands and open figures created:
+
+```sh
 $ java -jar build/libs/mine.jar LR
-```
-
-### k nearest neighbors
-
-```
 $ java -jar build/libs/mine.jar KNN
-```
-
-### k-means & EM algorithm
-
-```
 $ java -jar build/libs/mine.jar GMM
-```
-
-### naive Bayes classifier
-
-```
 $ java -jar build/libs/mine.jar NBC
-```
-
-### latent Dirichlet allocation
-
-```
 $ java -jar build/libs/mine.jar LDA
-```
-
-### multiple layer perceptron
-
-```
 $ java -jar build/libs/mine.jar MLP
-```
-
-### stochastic gradient descent
-
-```
 $ java -jar build/libs/mine.jar SGD
-```
-
-### support vector machine & kernel trick
-
-```
 $ java -jar build/libs/mine.jar SVM
 ```
+
+## Build
+
+```sh
+$ gradle build
+```
+
+## Contribution
+
+Feel free to contact [@nextzlog](https://twitter.com/nextzlog) on Twitter.
+
+## License
+
+### Author
+
+[無線部開発班 (JOURNAL OF HAMRADIO INFORMATICS LETTERS)](https://pafelog.net)
+
+### Clauses
+
+[BSD 3-Clause License](LICENSE.md)
