@@ -1,10 +1,10 @@
 Scala's Pattern Recognition and Machine Learning
 ====
 
+![image](https://img.shields.io/badge/Gradle-6-red.svg)
 ![image](https://img.shields.io/badge/Java-SE13-red.svg)
 ![image](https://img.shields.io/badge/Scala-2.12-orange.svg)
-![image](https://img.shields.io/badge/Gradle-6-orange.svg)
-![image](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)
+![image](https://img.shields.io/badge/license-BSD%203--Clause-darkblue.svg)
 
 sample codes of machine learning models and algorithms written in Scala, for the educational purpose in data science.
 
