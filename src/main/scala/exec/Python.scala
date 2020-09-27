@@ -15,6 +15,6 @@ object Python {
 		src.getLines.foreach(out.println)
 		src.close
 		out.close
-		"python %s %s".format(tmp.getPath, args.mkString(" ")) !
+		"python3 %s %s".format(tmp.getPath, args.mkString(" ")) !
 	}
 }

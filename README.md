@@ -3,7 +3,8 @@ Scala's Pattern Recognition and Machine Learning
 
 ![image](https://img.shields.io/badge/Gradle-6-red.svg)
 ![image](https://img.shields.io/badge/Java-SE13-red.svg)
-![image](https://img.shields.io/badge/Scala-2.12-orange.svg)
+![image](https://img.shields.io/badge/Python-3.8-red.svg)
+![image](https://img.shields.io/badge/Scala-2.13-orange.svg)
 ![image](https://img.shields.io/badge/license-BSD%203--Clause-darkblue.svg)
 
 sample codes of machine learning models and algorithms written in Scala, for the educational purpose in data science.
@@ -21,7 +22,9 @@ sample codes of machine learning models and algorithms written in Scala, for the
 
 ## Dependencies
 
-- Python2.7
+- Python3.8
+- numpy
+- scipy
 - matplotlib
 - cartopy
 - geos

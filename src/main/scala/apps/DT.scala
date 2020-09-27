@@ -3,6 +3,10 @@ package apps
 import java.io.PrintStream
 import scala.collection.mutable.ArrayBuffer
 
+object Eta {
+	var eta: Double = 1e-5
+}
+
 trait Node[T] {
 	def apply(x: Seq[Int]): T
 }
@@ -12,7 +16,7 @@ case class Question[T](Y: Seq[(Seq[Int], T)]) extends Node[T] {
 	lazy val ent = freqs.map(f => -f * math.log(f)).sum / math.log(2)
 	lazy val major = Y.groupBy(_._2).maxBy(_._2.size)._1
 	lazy val v = Y.head._1.indices.map(Variable(Y, _)).minBy(_.t.ent)
-	def apply(x: Seq[Int]) = if(ent - v.t.ent < 1e-5) major else v(x)
+	def apply(x: Seq[Int]) = if(ent - v.t.ent <= Eta.eta) major else v(x)
 }
 
 case class Variable[T](Y: Seq[(Seq[Int], T)], axis: Int) extends Node[T] {
@@ -78,6 +82,8 @@ object DT {
 		test(s"plain", Question(data), data)
 		test(s"bag$K", Bagging (data, K, size / 5), data)
 		test(s"ada$K", AdaBoost(data, K), data)
+		Eta.eta = 1e-1
+		test(s"prune", Question(data), data)
 	}
 	def test(id: String, root: Node[Int], data: Seq[(Seq[Int], Int)]) {
 		util.Try {

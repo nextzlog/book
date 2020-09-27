@@ -20,14 +20,14 @@ ax.set_extent((wlim, elim, slim, nlim))
 colors = ['red', 'green', 'yellow', 'navy', 'orange']
 country = shp.Reader(shp.natural_earth(resolution='10m', category='cultural', name='admin_1_states_provinces'))
 invaded = shp.Reader(shp.natural_earth(resolution='10m', category='cultural', name='admin_0_disputed_areas'))
-for pref in filter(lambda p:p.attributes['admin'] == 'Japan', country.records()):
+for pref in [p for p in country.records() if p.attributes['admin'] == 'Japan']:
 	ax.add_geometries(pref.geometry, crs=ccrs.PlateCarree(), facecolor=colors[int(prefs[pref])], edgecolor='black', lw=1)
-for land in filter(lambda p:'Claimed by Japan' in p.attributes['NOTE_BRK'], invaded.records()):
+for land in [p for p in invaded.records() if 'Claimed by Japan' in p.attributes['NOTE_BRK']]:
 	if pref.attributes['ADMIN'] == 'Russia':
 		ax.add_geometries(pref.geometry, crs=ccrs.PlateCarree(), facecolor=colors[int(prefs['Hokkaido'])], edgecolor='black', lw=1)
 	else:
 		ax.add_geometries(pref.geometry, crs=ccrs.PlateCarree(), facecolor=colors[int(prefs['Shimane'])], edgecolor='black', lw=1)
-plt.savefig('plot%i.svg' % int(sys.argv[1]), bbox_inches='tight', pad_inches=0)
-plt.savefig('plot%i.eps' % int(sys.argv[1]), bbox_inches='tight', pad_inches=0)
+plt.savefig('plot{}.svg'.format(sys.argv[1]), bbox_inches='tight', pad_inches=0)
+plt.savefig('plot{}.eps'.format(sys.argv[1]), bbox_inches='tight', pad_inches=0)
 os.remove('pref.dat')
-webbrowser.open('file://%s' % os.path.realpath('plot%i.svg' % int(sys.argv[1])))
+webbrowser.open('file://{}'.format(os.path.realpath('plot{}.svg'.format(sys.argv[1]))))
