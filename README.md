@@ -38,6 +38,7 @@ sample codes of machine learning models and algorithms written in Scala, for the
 - Just run the following commands and open figures created:
 
 ```sh
+$ gradle build
 $ java -jar build/libs/mine.jar LR
 $ java -jar build/libs/mine.jar KNN
 $ java -jar build/libs/mine.jar GMM
@@ -46,12 +47,6 @@ $ java -jar build/libs/mine.jar LDA
 $ java -jar build/libs/mine.jar MLP
 $ java -jar build/libs/mine.jar SGD
 $ java -jar build/libs/mine.jar SVM
-```
-
-## Build
-
-```sh
-$ gradle build
 ```
 
 ## Contribution
