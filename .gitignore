@@ -1,6 +1,5 @@
 .gradle
 build/*
-!build/libs
 *.svg
 *.eps
 *.dat
