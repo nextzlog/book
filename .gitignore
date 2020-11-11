@@ -1,8 +1,6 @@
-.gradle
-build/*
-*.svg
-*.eps
+.*
 *.dat
-
-*.swp
-.DS_Store
+*.eps
+*.svg
+build/
+!.gitignore

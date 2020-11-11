@@ -1,53 +1,14 @@
-Scala's Pattern Recognition and Machine Learning
+Journal of Hamradio Informatics Sample Code Collection
 ====
-
-![image](https://img.shields.io/badge/Gradle-6-red.svg)
-![image](https://img.shields.io/badge/Java-SE13-red.svg)
-![image](https://img.shields.io/badge/Python-3.8-red.svg)
-![image](https://img.shields.io/badge/Scala-2.13-orange.svg)
-![image](https://img.shields.io/badge/license-BSD%203--Clause-darkblue.svg)
-
-sample codes of machine learning models and algorithms written in Scala, for the educational purpose in data science.
 
 ## Features
 
-- linear regression
-- k-nearest neighbors
-- k-means & EM algorithm
-- naive Bayes classifier
-- latent Dirichlet allocation
-- multiple layer perceptron
-- stochastic gradient descent
-- support vector machine & kernel trick
+- [Scala's Pattern Recognition & Machine Learning](mine/)
+- [JavaFX WireWorld Automaton](wire/)
 
-## Dependencies
+## Utilities
 
-- Python3.8
-- numpy
-- scipy
-- matplotlib
-- cartopy
-- geos
-
-## Documents
-
-- [Scalaで実装するパターン認識と機械学習 (PDF)](https://pafelog.net/mine.pdf) [(HTML)](https://pafelog.net/mine.html)
-
-## Usage
-
-- Just run the following commands and open figures created:
-
-```sh
-$ gradle build
-$ java -jar build/libs/mine.jar LR
-$ java -jar build/libs/mine.jar KNN
-$ java -jar build/libs/mine.jar GMM
-$ java -jar build/libs/mine.jar NBC
-$ java -jar build/libs/mine.jar LDA
-$ java -jar build/libs/mine.jar MLP
-$ java -jar build/libs/mine.jar SGD
-$ java -jar build/libs/mine.jar SVM
-```
+- [LaTeX to Markdown Conversion Tool](text/)
 
 ## Contribution
 

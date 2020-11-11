@@ -1,0 +1,22 @@
+apply plugin: 'scala'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.scala-lang:scala-library:2.13.+'
+	implementation 'org.scala-lang.modules:scala-jline:+'
+	implementation 'org.scala-lang.modules:scala-parser-combinators_2.13:+'
+}
+
+compileScala {
+	options.encoding = 'UTF-8'
+}
+
+jar {
+	manifest.attributes 'Main-Class': 'text.TeXt'
+	from configurations.compileClasspath.collect {
+		it.isDirectory()? it: zipTree(it)
+	}
+}

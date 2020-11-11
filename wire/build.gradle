@@ -1,0 +1,28 @@
+plugins {
+	id 'scala'
+	id 'org.openjfx.javafxplugin' version '0.0.8'
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.scala-lang:scala-library:2.13.+'
+}
+
+javafx {
+	version = '13'
+	modules = ['javafx.controls']
+}
+
+compileScala {
+	options.encoding = 'UTF-8'
+}
+
+jar {
+	manifest.attributes 'Main-Class': 'wire.Main'
+	from configurations.compileClasspath.collect {
+		it.isDirectory()? it: zipTree(it)
+	}
+}
