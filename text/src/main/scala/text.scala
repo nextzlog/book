@@ -97,7 +97,8 @@ trait TeX {
     case str if str.startsWith("[") && str.endsWith("]") => str.tail.init
     case str => str
   }
-  def lab(prefix: String): Seq[String]
+  def midruled: Boolean = false
+	def lab(prefix: String): Seq[String]
   def cap: Seq[String]
 }
 
@@ -108,17 +109,20 @@ abstract class LeafTeX extends TeX {
 }
 
 abstract class TreeTeX(children: TeX*) extends TeX {
-  def lab(prefix: String) = children.map(_.lab(prefix)).flatten
+  override def midruled = children.exists(_.midruled)
+	def lab(prefix: String) = children.map(_.lab(prefix)).flatten
   def cap = children.map(_.cap).flatten
 }
 
 abstract class CmdTeX(raw: String) {
-  def name = YenTeX(raw.replaceAll("""\\""", ""))
+  def midruled = false
+	def name = YenTeX(raw.replaceAll("""\\""", ""))
   def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean): CmdBodyTeX
 }
 
 class CmdBodyTeX(app: CmdAppTeX, cmd: CmdTeX) extends TreeTeX(app.args) {
-  override def cvt(scope: TeX)(implicit isMath: Boolean): TeX = cmd(CmdAppTeX(cmd.name, app.args.cvt(scope)), scope)
+  override def midruled = cmd.midruled
+	override def cvt(scope: TeX)(implicit isMath: Boolean): TeX = cmd(CmdAppTeX(cmd.name, app.args.cvt(scope)), scope)
   override def str(scope: TeX)(implicit isMath: Boolean) = ""
 }
 
@@ -167,8 +171,8 @@ case class EscTeX(char: String) extends LeafTeX {
   override def str(scope: TeX)(implicit isMath: Boolean) = char match {
     case _ if isMath => "\\".concat(char)
     case "\\" if !isMath => "\n"
-    case _ if !isMath => char
-  }
+		case _ if !isMath => char
+	}
 }
 
 case class VrbTeX(body: String) extends LeafTeX {
@@ -337,8 +341,8 @@ object ColonEqqCmdTeX extends CmdTeX("coloneqq") {
 
 object MathChoiceCmdTeX extends CmdTeX("mathchoice") {
   def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-    override def str(scope: TeX)(implicit isMath: Boolean) = app.args.body.head.peel(scope)
-  }
+    override def str(scope: TeX)(implicit isMath: Boolean) = app.args.body.head.str(scope)
+	}
 }
 
 class OutputNothingCmdTeX(name: String) extends CmdTeX(name) {
@@ -371,19 +375,19 @@ object LetLtxMacroCmdTeX extends CmdTeX("LetLtxMacro") {
 class BaseNewCommandCmdTeX(name: String) extends CmdTeX(name) {
   def apply(outer: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(outer, this) {
     val name = outer.args.body.head.peel(scope)
-    val data = outer.args.body.last.peel(scope)
     override def cvt(scope: TeX)(implicit isMath: Boolean) = {
       Root.install(new CmdTeX(name) {
         def apply(inner: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(inner, this) {
           override def cvt(scope: TeX)(implicit isMath: Boolean) = {
-            val narg = """#(\d+)""".r.findAllIn(data).distinct.size
+    				val data = outer.args.body.last.peel(scope)(true)
+						val narg = """#(\d+)""".r.findAllIn(data).distinct.size
             val text = data.replaceAll("""#(\d)""", """%$1\$s""")
             val (args, tail) = inner.args.body.splitAt(narg)
             val full = args ++ Seq.fill(narg - args.size)(StrTeX(""))
             val form = text.format(full.map(_.cvt(scope).peel(scope)): _*)
             val rest = tail.map(_.cvt(scope).peel(scope)).mkString
-            TeXPEGs.parseTeX(form.concat(rest)).cvt(scope)
-          }
+						TeXPEGs.parseTeX(form.concat(rest)).cvt(scope)
+					}
         }
       })
       this
@@ -409,7 +413,9 @@ object HFillCmdTeX extends OutputNothingCmdTeX("hfill")
 
 object TopRuleCmdTeX extends OutputNothingCmdTeX("toprule")
 
-object MidRuleCmdTeX extends OutputNothingCmdTeX("midrule")
+object MidRuleCmdTeX extends OutputNothingCmdTeX("midrule") {
+	override def midruled = true
+}
 
 object BottomRuleCmdTeX extends OutputNothingCmdTeX("bottomrule")
 
@@ -444,7 +450,7 @@ object EquationEnvTeX extends EnvTeX("equation") {
   def apply(app: EnvAppTeX, scope: TeX)(implicit isMath: Boolean) = new EnvBodyTeX(app, this) {
     override def str(scope: TeX)(implicit isMath: Boolean) = {
       val exp = app.body.str(this)(true).trim
-      val lab = this.lab("eq:").headOption.map(" {#%s}".format(_)).getOrElse("")
+			val lab = this.lab("eq:").headOption.map(" {#%s}".format(_)).getOrElse("")
       """$$%s$$%s""".format(exp, lab)
     }
   }
@@ -464,11 +470,13 @@ object TabularEnvTeX extends EnvTeX("tabular") {
     override def str(scope: TeX)(implicit isMath: Boolean) = {
       val ncol = app.args.body.head.str(scope).count(_.toChar.isLetter)
       val rows = app.body.str(scope).replaceAll("&", "|").replaceAll("""\\""", "").trim.linesIterator.toSeq
-      val head = Seq(rows.head, Seq.fill(ncol)("---").mkString("|")).map("|%s|".format(_))
-      val body = rows.tail.map("|%s|".format(_))
-      val cap = scope.cap.headOption.getOrElse("")
+      val head = Seq(if(app.body.midruled) rows.head else Seq.fill(ncol)("-").mkString("|"))
+			val rule = Seq.fill(ncol)("---").mkString("|")
+      val body = if(app.body.midruled) rows.tail else rows
+			val cap = scope.cap.headOption.getOrElse("")
       val lab = scope.lab("tbl:").headOption.map("{#%s}".format(_)).getOrElse("")
-      (head ++ body :+ ": %s %s".format(cap, lab)).mkString("\n")
+      val data = (head :+ rule) ++ body.filterNot(_.trim.isEmpty)
+			(data.map("|%s|".format(_)) :+ ": %s %s".format(cap, lab)).mkString("\n")
     }
   }
 }
@@ -483,7 +491,8 @@ object TeXt {
     val sout = new StringWriter()
     val pout = new PrintWriter(sout)
     asts.lastOption.foreach(_ => pout.println(TeXPEGs.parseTeX("\\@maintitle").cvt(null).str(null)))
-    asts.lastOption.foreach(_.body.lastOption.map(ast => ast.str(ast)).foreach(pout.println))
+    pout.println("==")
+		asts.lastOption.foreach(_.body.lastOption.map(ast => ast.str(ast)).foreach(pout.println))
     sout.toString
   }
 }
