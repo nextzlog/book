@@ -3,495 +3,199 @@ package text
 import java.net.URLEncoder
 import java.io.{PrintWriter, StringWriter}
 
+import scala.collection.mutable.{Buffer, Map => MutableMap, Queue}
 import scala.io.Source
 import scala.util.Using
 import scala.util.parsing.combinator.{PackratParsers, RegexParsers}
 
 object TeXPEGs extends RegexParsers with PackratParsers {
 	lazy val id = """[@A-Za-z]+\*?""".r
-	lazy val yen: Parser[YenTeX] = "\\" ~> id ^^ YenTeX
-	lazy val com: Parser[TeX] = "%" ~ ".*".r ^^ (_ => StrTeX(""))
-	lazy val str: Parser[TeX] = """[^\\\{\}\[\]%\$]+""".r ^^ StrTeX
-	lazy val bra: Parser[TeX] = "{" ~> doc <~ "}" ^^ ArgTeX
-	lazy val sqb: Parser[TeX] = "[" ~> doc <~ "]" ^^ OptTeX
-	lazy val esc: Parser[TeX] = "\\" ~> """[\\{}_&%\$#\|;!, ]""".r ^^ EscTeX
-	lazy val env: Parser[TeX] = ("\\begin{" ~> id <~ "}") ~ arg ~ doc <~ ("\\end{" ~> id <~ "}") ^^ {
+	lazy val yen = "\\" ~> id ^^ YenTeX
+	lazy val cmt = "%" ~ ".*".r ^^ (_ => StrTeX(""))
+	lazy val str = """[^\\\{\}\[\]%\$]+""".r ^^ StrTeX
+	lazy val bra = "{" ~> doc <~ "}" ^^ ArgTeX
+	lazy val sqb = "[" ~> doc <~ "]" ^^ OptTeX
+	lazy val esc = "\\" ~> """[\\{}_&%\$#\|;!, ]""".r ^^ EscTeX
+	lazy val env = ("\\begin{" ~> id <~ "}") ~ arg ~ doc <~ ("\\end{" ~> id <~ "}") ^^ {
 		case name ~ args ~ body => EnvAppTeX(name, args, body)
 	}
-	lazy val cmd: Parser[TeX] = not("\\end{") ~> yen ~ arg ^^ { case name ~ args => CmdAppTeX(name, args) }
-	lazy val arg: Parser[DocTeX] = (yen.+ ~ (sqb | bra).*) ^^ { case y ~ args => DocTeX(y ++ args) } | ((sqb | bra).* ^^ DocTeX)
-	lazy val mat: Parser[TeX] = "$" ~> (esc | cmd | bra | sqb | str).* <~ "$" ^^ DocTeX ^^ MatTeX
-	lazy val doc: Parser[DocTeX] = (com | esc | lst | env | vrb | cmd | bra | sqb | str | mat).* ^^ DocTeX
-	lazy val vrb: Parser[TeX] = (("\\verb#" ~> "[^#]*".r <~ "#") | ("\\verb|" ~> """[^\|]*""".r <~ "|")) ^^ VrbTeX
-	lazy val lst: Parser[TeX] = "\\begin{Verbatim}" ~> arg ~ (not("\\end") ~> "[\\S\\s]".r).* <~ "\\end{Verbatim}" ^^ {
+	lazy val cmd = not("\\end{") ~> yen ~ arg ^^ {
+		case name ~ args => CmdAppTeX(name, args)
+	}
+	lazy val mat = "$" ~> (esc | cmd | bra | sqb | str).* <~ "$" ^^ DocTeX ^^ MatTeX
+	lazy val arg: Parser[DocTeX] = (yen.+ ~ (sqb | bra).*) ^^ {
+		case y ~ args => DocTeX(y ++ args)
+	} | ((sqb | bra).* ^^ DocTeX)
+	lazy val doc: Parser[DocTeX] = (cmt | esc | lst | tim | env | vrb | cmd | bra | sqb | str | mat).* ^^ DocTeX
+	lazy val vrb = (("\\verb#" ~> "[^#]*".r <~ "#") | ("\\verb|" ~> """[^\|]*""".r <~ "|")) ^^ VrbTeX
+	lazy val lst = "\\begin{lstlisting}" ~> arg ~ (not("\\end") ~> "[\\S\\s]".r).* <~ "\\end{lstlisting}" ^^ {
+		case args ~ lst => LstTeX(args.body.head, lst.mkString)
+	}
+	lazy val tim = "\\begin{Verbatim}" ~> arg ~ (not("\\end") ~> "[\\S\\s]".r).* <~ "\\end{Verbatim}" ^^ {
 		case args ~ lst => LstTeX(args.body.head, lst.mkString)
 	}
 	def parseTeX(str: String): DocTeX = parseAll(doc, str) match {
 		case Success(ast, _) => ast
-		case fail: NoSuccess => sys.error(fail.msg)
+		case Failure(msg, next) => sys.error(s"${msg}\nat${next.pos}${next.pos.longString}")
+		case Error(msg, next) => sys.error(s"${msg}\nat${next.pos}${next.pos.longString}")
 	}
 	override def skipWhitespace = false
 }
 
-case class Scope(cmds: Seq[CmdTeX], envs: Seq[EnvTeX], out: Option[Scope]) {
-	val cmdsTable = cmds.map(tex => tex.name -> tex).to(collection.mutable.Map)
-	val envsTable = envs.map(tex => tex.name -> tex).to(collection.mutable.Map)
-	def install(cmd: CmdTeX) = cmdsTable.getOrElseUpdate(cmd.name, cmd)
-	def install(env: EnvTeX) = envsTable.getOrElseUpdate(env.name, env)
-	def cmd(name: YenTeX): Option[CmdTeX] = cmdsTable.get(name).orElse(out.map(_.cmd(name)).flatten)
-	def env(name: String): Option[EnvTeX] = envsTable.get(name).orElse(out.map(_.env(name)).flatten)
+object ParamPEGs extends RegexParsers with PackratParsers {
+	lazy val m = "m" ^^ ParamM
+	lazy val O = "O" ~> ("{" ~> str <~ "}") ^^ ParamO
+	lazy val str = """[^\}]*""".r ^^ StrTeX
+	lazy val params = (m | O).*
+	def parseAll(str: String): Seq[Param] = parseAll(params, str) match {
+		case Success(ast, _) => ast
+		case fail: NoSuccess => sys.error(fail.msg)
+	}
+	override def skipWhitespace = true
 }
 
-object Root extends Scope(Seq(
-	LabelCmdTeX,
-	RefCmdTeX,
-	EqRefCmdTeX,
-	TabRefCmdTeX,
-	SubRefCmdTeX,
-	SubFigRefCmdTeX,
-	CaptionCmdTeX,
-	IncludeGraphicsCmdTeX,
-	SubFloatCmdTeX,
-	ChapterCmdTeX,
-	SectionCmdTeX,
-	SubSectionCmdTeX,
-	TextBfCmdTeX,
-	TextItCmdTeX,
-	TextTtCmdTeX,
-	HFillCmdTeX,
-	TopRuleCmdTeX,
-	MidRuleCmdTeX,
-	BottomRuleCmdTeX,
-	BmCmdTeX,
-	ColonEqqCmdTeX,
-	MathChoiceCmdTeX,
-	CenteringCmdTeX,
-	QuadCmdTeX,
-	DefCmdTeX,
-	GDefCmdTeX,
-	LetCmdTeX,
-	LetLtxMacroCmdTeX,
-	DocumentClassCmdTeX,
-	MakeTitleCmdTeX,
-	TableOfContentsCmdTeX,
-	UsePackageCmdTeX,
-	RequirePackageCmdTeX,
-	NewCommandCmdTeX,
-	RenewCommandCmdTeX,
-	NewDocumentCommandCmdTeX,
-	RenewDocumentCommandCmdTeX,
-	NewDocumentEnvironmentCmdTeX,
-	RenewDocumentEnvironmentCmdTeX,
-	DeclareMathOperatorCmdTeX
-), Seq(
-	DocumentEnvTeX,
-	EquationEnvTeX,
-	FigureEnvTeX,
-	TabularEnvTeX
-), None)
+object Binds {
+	val binds = MutableMap[YenTeX, NewCmdTeX]()
+	def get(name: YenTeX) = binds.get(name)
+}
 
 trait TeX {
-	def cvt(scope: TeX)(implicit isMath: Boolean): TeX
-	def str(scope: TeX)(implicit isMath: Boolean): String
-	def peel(scope: TeX)(implicit isMath: Boolean) = str(scope) match {
-		case str if str.startsWith("{") && str.endsWith("}") => str.tail.init
-		case str if str.startsWith("[") && str.endsWith("]") => str.tail.init
-		case str => str
-	}
-	def midruled: Boolean = false
-	def lab(prefix: String): Seq[String]
-	def cap: Seq[String]
+	override def toString(): String
+	def asArg = this.asInstanceOf[ArgTeX]
+	def asOpt = this.asInstanceOf[OptTeX]
+	def asYen = this.asInstanceOf[YenTeX]
+	def peel = toString()
 }
 
-abstract class LeafTeX extends TeX {
-	override def cvt(scope: TeX)(implicit isMath: Boolean): TeX = this
-	override def lab(prefix: String): Seq[String] = Seq()
-	override def cap: Seq[String] = Seq()
-}
-
-abstract class TreeTeX(children: TeX*) extends TeX {
-	override def midruled = children.exists(_.midruled)
-	def lab(prefix: String) = children.map(_.lab(prefix)).flatten
-	def cap = children.map(_.cap).flatten
-}
-
-abstract class CmdTeX(raw: String) {
-	def midruled = false
-	def name = YenTeX(raw.replaceAll("""\\""", ""))
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean): CmdBodyTeX
-}
-
-class CmdBodyTeX(app: CmdAppTeX, cmd: CmdTeX) extends TreeTeX(app.args) {
-	override def midruled = cmd.midruled
-	override def cvt(scope: TeX)(implicit isMath: Boolean): TeX = cmd(CmdAppTeX(cmd.name, app.args.cvt(scope)), scope)
-	override def str(scope: TeX)(implicit isMath: Boolean) = ""
-}
-
-abstract class EnvTeX(val name: String) {
-	def apply(app: EnvAppTeX, scope: TeX)(implicit isMath: Boolean): EnvBodyTeX
-}
-
-class EnvBodyTeX(app: EnvAppTeX, env: EnvTeX) extends TreeTeX(app) {
-	override def cvt(scope: TeX)(implicit isMath: Boolean): TeX = env(EnvAppTeX(env.name, app.args.cvt(this), app.body.cvt(scope)), this)
-	override def str(scope: TeX)(implicit isMath: Boolean) = app.body.str(scope)
-}
-
-case class CmdAppTeX(name: YenTeX, args: DocTeX) extends TreeTeX(args) {
-	override def cvt(scope: TeX)(implicit isMath: Boolean) = Root.cmd(name).map(_ (this, scope).cvt(scope)).getOrElse(CmdAppTeX(name, args.cvt(scope)))
-	override def str(scope: TeX)(implicit isMath: Boolean) = name.str(scope).concat(args.str(scope))
-}
-
-case class EnvAppTeX(name: String, args: DocTeX, body: TeX) extends TreeTeX(args, body) {
-	override def cvt(scope: TeX)(implicit isMath: Boolean) = Root.env(name).map(_ (this, this).cvt(this)).getOrElse(EnvAppTeX(name, args.cvt(this), body.cvt(this)))
-	override def str(scope: TeX)(implicit isMath: Boolean) = isMath match {
-		case true => """\begin{%1$s}%2$s%3$s\end{%1$s}""".format(name, args.str(scope), body.str(scope))
-		case false => body.str(this)
-	}
-}
-
-case class YenTeX(text: String) extends LeafTeX {
-	override def cvt(scope: TeX)(implicit isMath: Boolean) = CmdAppTeX(this, DocTeX(Seq())).cvt(scope)
-	override def str(scope: TeX)(implicit isMath: Boolean) = """\""".concat(text)
-}
-
-case class OptTeX(body: TeX) extends TreeTeX(body) {
-	override def cvt(scope: TeX)(implicit isMath: Boolean) = OptTeX(body.cvt(scope))
-	override def str(scope: TeX)(implicit isMath: Boolean) = """[%s]""".format(body.str(scope))
-}
-
-case class ArgTeX(body: TeX) extends TreeTeX(body) {
-	override def cvt(scope: TeX)(implicit isMath: Boolean) = ArgTeX(body.cvt(scope))
-	override def str(scope: TeX)(implicit isMath: Boolean) = """{%s}""".format(body.str(scope))
-}
-
-case class StrTeX(text: String) extends LeafTeX {
-	override def str(scope: TeX)(implicit isMath: Boolean) = text.replace('~', ' ')
-}
-
-case class EscTeX(char: String) extends LeafTeX {
-	override def str(scope: TeX)(implicit isMath: Boolean) = char match {
-		case _ if isMath => "\\".concat(char)
-		case "\\" if !isMath => "\n"
-		case _ if !isMath => char
-	}
-}
-
-case class VrbTeX(body: String) extends LeafTeX {
-	override def str(scope: TeX)(implicit isMath: Boolean) = s"`${body}`"
-}
-
-case class LstTeX(lang: TeX, body: String) extends LeafTeX {
-	override def str(scope: TeX)(implicit isMath: Boolean) = s"```${lang}${body}```"
-}
-
-case class MatTeX(body: TeX) extends TreeTeX(body) {
-	override def cvt(scope: TeX)(implicit isMath: Boolean) = MatTeX(body.cvt(this)(true))
-	override def str(scope: TeX)(implicit isMath: Boolean) = s"$$${body.str(this)(true).trim}$$"
-}
-
-case class DocTeX(body: Seq[TeX]) extends TreeTeX(body: _*) {
-	override def cvt(scope: TeX)(implicit isMath: Boolean) = DocTeX(body.map(_.cvt(scope)))
-	override def str(scope: TeX)(implicit isMath: Boolean) = body.map(_.str(scope)).mkString
-	override def peel(scope: TeX)(implicit isMath: Boolean) = body.map(_.peel(scope)).mkString
-}
-
-object StandardLabelFormat {
-	def apply(label: String) = label.split(":", 2).toSeq match {
-		case Seq("chap", lab) => "sec:".concat(lab)
-		case Seq("sect", lab) => "sec:".concat(lab)
-		case Seq("tab", lab) => "tbl:".concat(lab)
-		case other => other.mkString(":")
-	}
-}
-
-object LabelCmdTeX extends CmdTeX("label") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		val label = StandardLabelFormat(app.args.body.head.peel(scope))
-		override def lab(prefix: String) = Seq(label).filter(_.startsWith(prefix))
-	}
-}
-
-object RefCmdTeX extends CmdTeX("ref") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		val label = StandardLabelFormat(app.args.body.head.peel(scope))
-		override def str(scope: TeX)(implicit isMath: Boolean) = "[@%s]".format(label)
-	}
-}
-
-object EqRefCmdTeX extends CmdTeX("eqref") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		val label = StandardLabelFormat(app.args.body.head.peel(scope))
-		override def str(scope: TeX)(implicit isMath: Boolean) = "[@eq:%s]".format(label)
-	}
-}
-
-object TabRefCmdTeX extends CmdTeX("tabref") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		val label = StandardLabelFormat("tbl:".concat(app.args.body.head.peel(scope)))
-		override def str(scope: TeX)(implicit isMath: Boolean) = "Table ".concat(scope.lab(label.concat(":")).padTo(1, label).map("[@%s]".format(_)).mkString(", "))
-	}
-}
-
-object SubRefCmdTeX extends CmdTeX("subref") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		val label = StandardLabelFormat(app.args.body.head.peel(scope))
-		override def str(scope: TeX)(implicit isMath: Boolean) = "[@%s]".format(label)
-	}
-}
-
-object SubFigRefCmdTeX extends CmdTeX("subfigref") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		val label = StandardLabelFormat(app.args.body.map(_.peel(scope)).mkString(":"))
-		override def str(scope: TeX)(implicit isMath: Boolean) = "Fig. [@fig:%s]".format(label)
-	}
-}
-
-object CaptionCmdTeX extends CmdTeX("caption") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		override def cap = Seq(app.args.body.head.peel(scope))
-	}
-}
-
-object IncludeGraphicsCmdTeX extends CmdTeX("includegraphics") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		val path = app.args.body.last.peel(scope).replaceAll(".eps$", ".svg")
-		override def str(scope: TeX)(implicit isMath: Boolean) = {
-			val cap = scope.cap.headOption.getOrElse("")
-			val lab = scope.lab("fig:").headOption.map("{#%s}".format(_)).getOrElse("")
-			"![%s](%s)%s".format(cap, path, lab)
+case class CmdAppTeX(name: YenTeX, args: DocTeX) extends TeX {
+	override def toString() = Binds.get(name) match {
+		case Some(cmd) => cmd.expand(this)
+		case None => name match {
+			case YenTeX("bm") => "%s%s".format(YenTeX("boldsymbol"), args)
+			case YenTeX("coloneqq") => ":=%s".format(args)
+			case YenTeX("hfill") => args.toString()
+			case YenTeX("displaystyle") => args.toString()
+			case YenTeX("mathchoice") => args.body.head.asArg.peel
+			case YenTeX("NewDocumentCommand") => NewCmdTeX(name, args).toString()
+			case name => "%s%s".format(name, args)
 		}
 	}
 }
 
-object SubFloatCmdTeX extends CmdTeX("subfloat") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		override def cvt(scope: TeX)(implicit isMath: Boolean) = apply(CmdAppTeX(name, app.args.cvt(this)), this)
-		override def str(scope: TeX)(implicit isMath: Boolean) = app.args.body.last.peel(this)
-		override def cap = Seq(app.args.body.head.peel(this))
-	}
-}
+trait Param
 
-object ChapterCmdTeX extends CmdTeX("chapter") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = {
-			val tag = s"# ${app.args.peel(scope)}"
-			val lab = this.lab("sec:").headOption.map(" {#%s}".format(_)).getOrElse("")
-			tag.concat(lab)
+case class ParamM(partype: String) extends Param
+case class ParamO(default: StrTeX) extends Param
+
+case class NewCmdTeX(cmd: YenTeX, args: DocTeX) extends TeX {
+	Binds.binds(args.body.head.asYen) = this
+	/**
+	 * command body
+	 */
+	def body = args.body.last.asArg.peel
+
+	/**
+	 * command body that can be used as a formatted String
+	 */
+	val BODY = body.replaceAll("""#(\d)""", """%$1\$s""")	
+
+	/**
+	 * command parameters
+	 */
+	val pars = ParamPEGs.parseAll(args.body(1).asArg.peel)
+
+	/**
+	 * process command arguments
+	 *
+	 * @return (used arguments, unused arguments)
+	 */
+	def passArgs(app: CmdAppTeX): (Seq[TeX], Seq[TeX]) = {
+		// all arguments explicitly specified
+		if(app.args.body.size >= pars.size) {
+			app.args.body.splitAt(pars.size)
+		} else {
+			val buf = Buffer[TeX]()
+			val que = Queue[TeX](app.args.body:_*)
+			for(par <- this.pars) par match {
+				case ParamM(m) => buf += que.dequeue()
+				case ParamO(default) => buf += default
+			}
+			(buf.toSeq, que.toSeq)
 		}
 	}
-}
 
-object SectionCmdTeX extends CmdTeX("section") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = {
-			val tag = s"## ${app.args.peel(scope)}"
-			val lab = this.lab("sec:").headOption.map(" {#%s}".format(_)).getOrElse("")
-			tag.concat(lab)
-		}
+	/**
+	 * expand this macro into the specified expression
+	 */
+	def expand(app: CmdAppTeX): String = {
+		var tex = expandOnce(app)
+		var exp = ""
+		do {
+			exp = tex
+			tex = TeXPEGs.parseTeX(tex).toString()
+		} while(tex != exp)
+		tex
 	}
-}
 
-object SubSectionCmdTeX extends CmdTeX("subsection") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = {
-			val tag = s"### ${app.args.peel(scope)}"
-			val lab = this.lab("sec:").headOption.map(" {#%s}".format(_)).getOrElse("")
-			tag.concat(lab)
-		}
+	/**
+	 * expand this macro into the specified expression
+	 */
+	def expandOnce(app: CmdAppTeX): String = {
+		val (args, rest) = this.passArgs(app)
+		val vals = args.map(_.peel)
+		this.BODY.format(vals:_*).concat(rest.mkString)
 	}
+
+	override def toString() = cmd.toString().concat(args.toString())
 }
 
-object TextBfCmdTeX extends CmdTeX("textbf") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = isMath match {
-			case true => s"""\\textbf{${app.args.peel(scope)}}"""
-			case false => s"**${app.args.peel(scope)}**"
-		}
-	}
+case class EnvAppTeX(name: String, args: DocTeX, body: TeX) extends TeX {
+	override def toString() = """\begin{%1$s}%2$s%3$s\end{%1$s}""".format(name, args, body)
 }
 
-object TextItCmdTeX extends CmdTeX("textit") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = isMath match {
-			case true => s"""\\textit{${app.args.peel(scope)}}"""
-			case false => s"*${app.args.peel(scope)}*"
-		}
-	}
+case class YenTeX(text: String) extends TeX {
+	override def toString() = """\""".concat(text)
 }
 
-object TextTtCmdTeX extends CmdTeX("texttt") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = isMath match {
-			case true => s"""\\texttt{${app.args.peel(scope)}}"""
-			case false => app.args.peel(scope)
-		}
-	}
+case class OptTeX(body: TeX) extends TeX {
+	override def toString() = "[%s]".format(body)
+	override def peel = body.toString()
 }
 
-object BmCmdTeX extends CmdTeX("bm") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = s"""\\boldsymbol%s""".format(app.args.str(scope))
-	}
+case class ArgTeX(body: TeX) extends TeX {
+	override def toString() = "{%s}".format(body)
+	override def peel = body.toString()
 }
 
-object ColonEqqCmdTeX extends CmdTeX("coloneqq") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = """:="""
-	}
+case class StrTeX(text: String) extends TeX {
+	override def toString() = text
 }
 
-object MathChoiceCmdTeX extends CmdTeX("mathchoice") {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = app.args.body.head.str(scope)
-	}
+case class EscTeX(char: String) extends TeX {
+	override def toString() = """\""".concat(char)
 }
 
-class OutputNothingCmdTeX(name: String) extends CmdTeX(name) {
-	def apply(app: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(app, this)
+case class VrbTeX(body: String) extends TeX {
+	override def toString() = s"`${body}`"
 }
 
-class OutputNothingEnvTeX(name: String) extends EnvTeX(name) {
-	def apply(app: EnvAppTeX, scope: TeX)(implicit isMath: Boolean) = new EnvBodyTeX(app, this)
+case class LstTeX(lang: TeX, body: String) extends TeX {
+	override def toString() = s"""\\begin{lstlisting}[language=${lang}]${body}\\end{lstlisting}"""
 }
 
-object LetLtxMacroCmdTeX extends CmdTeX("LetLtxMacro") {
-	def apply(outer: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(outer, this) {
-		val newName = outer.args.body.head.peel(scope)
-		val oldName = outer.args.body.last.peel(scope)
-		override def cvt(scope: TeX)(implicit isMath: Boolean) = {
-			Root.install(new CmdTeX(newName) {
-				def apply(inner: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(inner, this) {
-					val value = inner.args.str(scope)
-					override def cvt(scope: TeX)(implicit isMath: Boolean) = this
-					override def str(scope: TeX)(implicit isMath: Boolean) = oldName.concat(value)
-				}
-			})
-			this
-		}
-	}
+case class MatTeX(body: TeX) extends TeX {
+	override def toString() = s"$$${body.toString().trim}$$"
 }
 
-class BaseNewCommandCmdTeX(name: String) extends CmdTeX(name) {
-	def apply(outer: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(outer, this) {
-		val name = outer.args.body.head.peel(scope)
-		override def cvt(scope: TeX)(implicit isMath: Boolean) = {
-			Root.install(new CmdTeX(name) {
-				def apply(inner: CmdAppTeX, scope: TeX)(implicit isMath: Boolean) = new CmdBodyTeX(inner, this) {
-					override def cvt(scope: TeX)(implicit isMath: Boolean) = {
-						val data = outer.args.body.last.peel(scope)(true)
-						val narg = """#(\d+)""".r.findAllIn(data).distinct.size
-						val text = data.replaceAll("""#(\d)""", """%$1\$s""")
-						val (args, tail) = inner.args.body.splitAt(narg)
-						val full = args ++ Seq.fill(narg - args.size)(StrTeX(""))
-						val form = text.format(full.map(_.cvt(scope).peel(scope)): _*)
-						val rest = tail.map(_.cvt(scope).peel(scope)).mkString
-						TeXPEGs.parseTeX(form.concat(rest)).cvt(scope)
-					}
-				}
-			})
-			this
-		}
-	}
-}
-
-object DocumentClassCmdTeX extends OutputNothingCmdTeX("documentclass")
-
-object MakeTitleCmdTeX extends OutputNothingCmdTeX("maketitle")
-
-object TableOfContentsCmdTeX extends OutputNothingCmdTeX("tableofcontents")
-
-object UsePackageCmdTeX extends OutputNothingCmdTeX("usepackage")
-
-object RequirePackageCmdTeX extends OutputNothingCmdTeX("RequirePackage")
-
-object CenteringCmdTeX extends OutputNothingCmdTeX("centering")
-
-object QuadCmdTeX extends OutputNothingCmdTeX("quad")
-
-object HFillCmdTeX extends OutputNothingCmdTeX("hfill")
-
-object TopRuleCmdTeX extends OutputNothingCmdTeX("toprule")
-
-object MidRuleCmdTeX extends OutputNothingCmdTeX("midrule") {
-	override def midruled = true
-}
-
-object BottomRuleCmdTeX extends OutputNothingCmdTeX("bottomrule")
-
-object DefCmdTeX extends BaseNewCommandCmdTeX("def")
-
-object GDefCmdTeX extends BaseNewCommandCmdTeX("gdef")
-
-object LetCmdTeX extends BaseNewCommandCmdTeX("let")
-
-object NewCommandCmdTeX extends BaseNewCommandCmdTeX("newcommand")
-
-object RenewCommandCmdTeX extends BaseNewCommandCmdTeX("renewcommand")
-
-object NewDocumentCommandCmdTeX extends BaseNewCommandCmdTeX("NewDocumentCommand")
-
-object RenewDocumentCommandCmdTeX extends BaseNewCommandCmdTeX("RenewDocumentCommand")
-
-object DeclareMathOperatorCmdTeX extends BaseNewCommandCmdTeX("DeclareMathOperator*")
-
-object NewDocumentEnvironmentCmdTeX extends OutputNothingCmdTeX("NewDocumentEnvironment")
-
-object RenewDocumentEnvironmentCmdTeX extends OutputNothingCmdTeX("RenewDocumentEnvironment")
-
-object DocumentEnvTeX extends EnvTeX("document") {
-	def apply(app: EnvAppTeX, scope: TeX)(implicit isMath: Boolean) = new EnvBodyTeX(app, this) {
-		override def cvt(scope: TeX)(implicit isMath: Boolean) = app.body.cvt(this)
-		override def str(scope: TeX)(implicit isMath: Boolean) = app.body.str(this)
-	}
-}
-
-object EquationEnvTeX extends EnvTeX("equation") {
-	def apply(app: EnvAppTeX, scope: TeX)(implicit isMath: Boolean) = new EnvBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = {
-			val exp = app.body.str(this)(true).replace("\n", "").replace("\r", "").trim
-			val lab = this.lab("eq:").headOption.map(" {#%s}".format(_)).getOrElse("")
-			s"$$$$${exp}$$$$${lab}"
-		}
-	}
-}
-
-object FigureEnvTeX extends EnvTeX("figure") {
-	def apply(app: EnvAppTeX, scope: TeX)(implicit isMath: Boolean) = new EnvBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = app.body.str(this).trim match {
-			case body if cap.size > 1 => s"<div id='${lab("fig:").last}'>\n$body\n\n${cap.last}\n</div>"
-			case body => body
-		}
-	}
-}
-
-object TabularEnvTeX extends EnvTeX("tabular") {
-	def apply(app: EnvAppTeX, scope: TeX)(implicit isMath: Boolean) = new EnvBodyTeX(app, this) {
-		override def str(scope: TeX)(implicit isMath: Boolean) = {
-			val ncol = app.args.body.head.str(scope).count(_.toChar.isLetter)
-			val rows = app.body.str(scope).replaceAll("&", "|").replaceAll("""\\""", "").trim.linesIterator.toSeq
-			val head = Seq(if(app.body.midruled) rows.head else Seq.fill(ncol)("-").mkString("|"))
-			val rule = Seq.fill(ncol)("---").mkString("|")
-			val body = if(app.body.midruled) rows.tail else rows
-			val cap = scope.cap.headOption.getOrElse("")
-			val lab = scope.lab("tbl:").headOption.map("{#%s}".format(_)).getOrElse("")
-			val data = (head :+ rule) ++ body.filterNot(_.trim.isEmpty)
-			(data.map("|%s|".format(_)) :+ ": %s %s".format(cap, lab)).mkString("\n")
-		}
-	}
+case class DocTeX(body: Seq[TeX]) extends TeX {
+	override def toString() = body.mkString
 }
 
 object TeXt {
-	implicit val isMath = false
 	def main(args: Array[String]): Unit = println(process(args))
 	def process(args: Array[String]): String = {
 		val pdfs = args.lastOption.map(_.split('.').dropRight(1).mkString("."))
 		val docs = args.toSeq.map(path => Using(Source.fromFile(path))(_.getLines().mkString("\n")).get)
-		val asts = docs.map(TeXPEGs.parseTeX(_)).map(ast => ast.cvt(ast))
-		val sout = new StringWriter()
-		val pout = new PrintWriter(sout)
-		asts.lastOption.foreach(_ => pout.println(TeXPEGs.parseTeX("\\@maintitle").cvt(null).str(null)))
-		pout.println("==")
-		asts.lastOption.foreach(_.body.lastOption.map(ast => ast.str(ast)).foreach(pout.println))
-		sout.toString
+		docs.map(TeXPEGs.parseTeX(_)).mkString("\n")
 	}
 }
