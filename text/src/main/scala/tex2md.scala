@@ -176,7 +176,7 @@ case class EscTeX(char: String) extends LeafTeX {
 }
 
 case class VrbTeX(body: String) extends LeafTeX {
-	override def str(scope: TeX)(implicit isMath: Boolean) = s"`${body}`".replace("|", "\\|")
+	override def str(scope: TeX)(implicit isMath: Boolean) = "`%s`".format(body.replace("|", "\\|"))
 }
 
 case class LstTeX(lang: TeX, body: String) extends LeafTeX {
@@ -473,7 +473,7 @@ object TabularEnvTeX extends EnvTeX("tabular") {
 	def apply(app: EnvAppTeX, scope: TeX)(implicit isMath: Boolean) = new EnvBodyTeX(app, this) {
 		override def str(scope: TeX)(implicit isMath: Boolean) = {
 			val ncol = app.args.body.head.str(scope).count(_.toChar.isLetter)
-			val rows = app.body.str(scope).replaceAll("&", "|").replaceAll("""\\""", "").trim.linesIterator.toSeq
+			val rows = app.body.str(scope).replace(" & ", " | ").replace("\\\\", "").trim.linesIterator.toSeq
 			val head = Seq(if(app.body.midruled) rows.head else Seq.fill(ncol)("-").mkString("|"))
 			val rule = Seq.fill(ncol)("---").mkString("|")
 			val body = if(app.body.midruled) rows.tail else rows
