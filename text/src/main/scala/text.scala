@@ -10,6 +10,8 @@ object TeXt {
 		val docs = args.toSeq.map(path => Using(Source.fromFile(path))(_.getLines().mkString("\n")).get)
 		val text = docs.map(tex2tex.TeXPEGs.parseTeX(_)).mkString("\n")
 		val tree = tex2md.TeXPEGs.parseTeX(text)
-		tree.cvt(tree)(false).str(tree)(false)
+		val body = tree.cvt(tree)(false).str(tree)(false)
+		val head = tex2md.TeXPEGs.parseTeX("\\@maintitle").cvt(null)(false).str(null)(false)
+		"%s%n===%n".format(head) + body
 	}
 }

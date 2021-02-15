@@ -22,7 +22,13 @@ object TeXPEGs extends RegexParsers with PackratParsers {
 		case y ~ args => DocTeX(y ++ args)
 	} | ((sqb | bra).* ^^ DocTeX)
 	lazy val doc: Parser[DocTeX] = (cmt | esc | tim | env | vrb | cmd | bra | sqb | str | mat).* ^^ DocTeX
-	lazy val vrb = (("\\verb#" ~> "[^#]*".r <~ "#") | ("\\verb|" ~> """[^\|]*""".r <~ "|")) ^^ VrbTeX
+	lazy val vrb = vrb1 | vrb2
+	lazy val vrb1 = ("\\verb#" ~> "[^#]*".r <~ "#") ^^ {
+		case quoted => VrbTeX("#", quoted)
+	}
+	lazy val vrb2 = ("\\verb|" ~> """[^\|]*""".r <~ "|") ^^ {
+		case quoted => VrbTeX("|", quoted)
+	}
 	lazy val tim = "\\begin{Verbatim}" ~> arg ~ (not("\\end") ~> "[\\S\\s]".r).* <~ "\\end{Verbatim}" ^^ {
 		case args ~ lst => LstTeX(args.body.head, lst.mkString)
 	}
@@ -171,8 +177,8 @@ case class EscTeX(char: String) extends TeX {
 	override def toString() = """\""".concat(char)
 }
 
-case class VrbTeX(body: String) extends TeX {
-	override def toString() = s"`${body}`"
+case class VrbTeX(del: String, body: String) extends TeX {
+	override def toString() = s"\\verb${del}${body}${del}"
 }
 
 case class LstTeX(lang: TeX, body: String) extends TeX {

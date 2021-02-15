@@ -23,7 +23,8 @@ object TeXPEGs extends RegexParsers with PackratParsers {
 	}
 	def parseTeX(str: String): DocTeX = parseAll(doc, str) match {
 		case Success(ast, _) => ast
-		case fail: NoSuccess => sys.error(fail.msg)
+		case Failure(msg, next) => sys.error(s"${msg}\nat${next.pos}${next.pos.longString}")
+		case Error(msg, next) => sys.error(s"${msg}\nat${next.pos}${next.pos.longString}")
 	}
 	override def skipWhitespace = false
 }
@@ -70,7 +71,10 @@ object Root extends Scope(Seq(
 	MakeTitleCmdTeX,
 	TableOfContentsCmdTeX,
 	UsePackageCmdTeX,
+	IfPackageLoadedCmdTeX,
 	RequirePackageCmdTeX,
+	LstDefineLanguageCmdTeX,
+	LstNewEnvironmentCmdTeX,
 	NewCommandCmdTeX,
 	RenewCommandCmdTeX,
 	NewDocumentCommandCmdTeX,
@@ -172,7 +176,7 @@ case class EscTeX(char: String) extends LeafTeX {
 }
 
 case class VrbTeX(body: String) extends LeafTeX {
-	override def str(scope: TeX)(implicit isMath: Boolean) = s"`${body}`"
+	override def str(scope: TeX)(implicit isMath: Boolean) = s"`${body}`".replace("|", "\\|")
 }
 
 case class LstTeX(lang: TeX, body: String) extends LeafTeX {
@@ -398,6 +402,12 @@ object TableOfContentsCmdTeX extends OutputNothingCmdTeX("tableofcontents")
 object UsePackageCmdTeX extends OutputNothingCmdTeX("usepackage")
 
 object RequirePackageCmdTeX extends OutputNothingCmdTeX("RequirePackage")
+
+object IfPackageLoadedCmdTeX extends OutputNothingCmdTeX("@ifpackageloaded")
+
+object LstDefineLanguageCmdTeX extends OutputNothingCmdTeX("lstdefinelanguage")
+
+object LstNewEnvironmentCmdTeX extends OutputNothingCmdTeX("lstnewenvironment")
 
 object CenteringCmdTeX extends OutputNothingCmdTeX("centering")
 
