@@ -172,7 +172,7 @@ abstract class DefCmdTeX(cmd: YenTeX, args: DocTeX) extends TeX {
 		this.BODY.format(vals:_*).concat(rest.mkString)
 	}
 
-	def eval = ""//cmd.eval.concat(args.eval)
+	def eval = ""
 	def view = "%s%s".format(cmd.view, args.view)
 	def toMD = tex2md.StrMD("")
 }

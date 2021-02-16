@@ -3,8 +3,6 @@ package tex2md
 case class Scope(cmds: Seq[CmdMD], envs: Seq[EnvMD], out: Option[Scope]) {
 	val cmdsTable = cmds.map(tex => tex.name -> tex).to(collection.mutable.Map)
 	val envsTable = envs.map(tex => tex.name -> tex).to(collection.mutable.Map)
-	def install(cmd: CmdMD) = cmdsTable.getOrElseUpdate(cmd.name, cmd)
-	def install(env: EnvMD) = envsTable.getOrElseUpdate(env.name, env)
 	def cmd(name: YenMD): Option[CmdMD] = cmdsTable.get(name).orElse(out.map(_.cmd(name)).flatten)
 	def env(name: String): Option[EnvMD] = envsTable.get(name).orElse(out.map(_.env(name)).flatten)
 }
@@ -35,10 +33,9 @@ object Root extends Scope(Seq(
 	MathChoiceCmdMD,
 	CenteringCmdMD,
 	QuadCmdMD,
-	DefCmdMD,
-	GDefCmdMD,
-	LetCmdMD,
 	LetLtxMacroCmdMD,
+	RenewCommandCmdMD,
+	RenewDocumentCommandCmdMD,
 	DocumentClassCmdMD,
 	MakeTitleCmdMD,
 	TableOfContentsCmdMD,
@@ -47,13 +44,8 @@ object Root extends Scope(Seq(
 	RequirePackageCmdMD,
 	LstDefineLanguageCmdMD,
 	LstNewEnvironmentCmdMD,
-	NewCommandCmdMD,
-	RenewCommandCmdMD,
-	NewDocumentCommandCmdMD,
-	RenewDocumentCommandCmdMD,
 	NewDocumentEnvironmentCmdMD,
 	RenewDocumentEnvironmentCmdMD,
-	DeclareMathOperatorCmdMD
 ), Seq(
 	DocumentEnvMD,
 	EquationEnvMD,
@@ -191,7 +183,7 @@ object RefCmdMD extends CmdMD("ref") {
 
 object EqRefCmdMD extends CmdMD("eqref") {
 	def apply(app: CmdAppMD, scope: MD)(implicit isMath: Boolean) = new CmdBodyMD(app, this) {
-		val label = StandardLabelFormat(app.args.body.head.peel(scope))
+		val label = app.args.body.head.peel(scope)
 		override def str(scope: MD)(implicit isMath: Boolean) = "[@eq:%s]".format(label)
 	}
 }
@@ -324,52 +316,22 @@ object MathChoiceCmdMD extends CmdMD("mathchoice") {
 }
 
 class OutputNothingCmdMD(name: String) extends CmdMD(name) {
-	def apply(app: CmdAppMD, scope: MD)(implicit isMath: Boolean) = new CmdBodyMD(app, this)
+	def apply(app: CmdAppMD, scope: MD)(implicit isMath: Boolean) = new CmdBodyMD(app, this) {
+		override def cvt(scope: MD)(implicit isMath: Boolean) = StrMD("")
+	}
 }
 
 class OutputNothingEnvMD(name: String) extends EnvMD(name) {
-	def apply(app: EnvAppMD, scope: MD)(implicit isMath: Boolean) = new EnvBodyMD(app, this)
-}
-
-object LetLtxMacroCmdMD extends CmdMD("LetLtxMacro") {
-	def apply(outer: CmdAppMD, scope: MD)(implicit isMath: Boolean) = new CmdBodyMD(outer, this) {
-		val newName = outer.args.body.head.peel(scope)
-		val oldName = outer.args.body.last.peel(scope)
-		override def cvt(scope: MD)(implicit isMath: Boolean) = {
-			Root.install(new CmdMD(newName) {
-				def apply(inner: CmdAppMD, scope: MD)(implicit isMath: Boolean) = new CmdBodyMD(inner, this) {
-					val value = inner.args.str(scope)
-					override def cvt(scope: MD)(implicit isMath: Boolean) = this
-					override def str(scope: MD)(implicit isMath: Boolean) = oldName.concat(value)
-				}
-			})
-			this
-		}
+	def apply(app: EnvAppMD, scope: MD)(implicit isMath: Boolean) = new EnvBodyMD(app, this) {
+		override def cvt(scope: MD)(implicit isMath: Boolean) = StrMD("")
 	}
 }
 
-class BaseNewCommandCmdMD(name: String) extends CmdMD(name) {
-	def apply(outer: CmdAppMD, scope: MD)(implicit isMath: Boolean) = new CmdBodyMD(outer, this) {
-		val name = outer.args.body.head.peel(scope)
-		override def cvt(scope: MD)(implicit isMath: Boolean) = {
-			Root.install(new CmdMD(name) {
-				def apply(inner: CmdAppMD, scope: MD)(implicit isMath: Boolean) = new CmdBodyMD(inner, this) {
-					override def cvt(scope: MD)(implicit isMath: Boolean) = {
-						val data = outer.args.body.last.peel(scope)(true)
-						val narg = """#(\d+)""".r.findAllIn(data).distinct.size
-						val text = data.replaceAll("""#(\d)""", """%$1\$s""")
-						val (args, tail) = inner.args.body.splitAt(narg)
-						val full = args ++ Seq.fill(narg - args.size)(StrMD(""))
-						val form = text.format(full.map(_.cvt(scope).peel(scope)): _*)
-						val rest = tail.map(_.cvt(scope).peel(scope)).mkString
-						tex2tex.TeXPEGs.parseTeX(form.concat(rest)).toMD.cvt(scope)
-					}
-				}
-			})
-			this
-		}
-	}
-}
+object LetLtxMacroCmdMD extends OutputNothingCmdMD("LetLtxMacro")
+
+object RenewCommandCmdMD extends OutputNothingCmdMD("renewcommand")
+
+object RenewDocumentCommandCmdMD extends OutputNothingCmdMD("RenewDocumentCommand")
 
 object DocumentClassCmdMD extends OutputNothingCmdMD("documentclass")
 
@@ -400,22 +362,6 @@ object MidRuleCmdMD extends OutputNothingCmdMD("midrule") {
 }
 
 object BottomRuleCmdMD extends OutputNothingCmdMD("bottomrule")
-
-object DefCmdMD extends BaseNewCommandCmdMD("def")
-
-object GDefCmdMD extends BaseNewCommandCmdMD("gdef")
-
-object LetCmdMD extends BaseNewCommandCmdMD("let")
-
-object NewCommandCmdMD extends BaseNewCommandCmdMD("newcommand")
-
-object RenewCommandCmdMD extends BaseNewCommandCmdMD("renewcommand")
-
-object NewDocumentCommandCmdMD extends BaseNewCommandCmdMD("NewDocumentCommand")
-
-object RenewDocumentCommandCmdMD extends BaseNewCommandCmdMD("RenewDocumentCommand")
-
-object DeclareMathOperatorCmdMD extends BaseNewCommandCmdMD("DeclareMathOperator*")
 
 object NewDocumentEnvironmentCmdMD extends OutputNothingCmdMD("NewDocumentEnvironment")
 
