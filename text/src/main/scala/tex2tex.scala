@@ -63,6 +63,7 @@ trait TeX {
 	def asOpt = this.asInstanceOf[OptTeX]
 	def asYen = this.asInstanceOf[YenTeX]
 	def peel = toString()
+	def toMD: tex2md.MD
 }
 
 case class CmdAppTeX(name: YenTeX, args: DocTeX) extends TeX {
@@ -78,6 +79,7 @@ case class CmdAppTeX(name: YenTeX, args: DocTeX) extends TeX {
 			case name => "%s%s".format(name, args)
 		}
 	}
+	def toMD = tex2md.CmdAppMD(name.toMD, args.toMD)
 }
 
 trait Param
@@ -145,6 +147,8 @@ case class NewCmdTeX(cmd: YenTeX, args: DocTeX) extends TeX {
 	}
 
 	override def toString() = cmd.toString().concat(args.toString())
+
+	def toMD = tex2md.StrMD("")
 }
 
 case class EnvAppTeX(name: String, args: DocTeX, body: TeX) extends TeX {
@@ -153,42 +157,52 @@ case class EnvAppTeX(name: String, args: DocTeX, body: TeX) extends TeX {
 		case "equation" => this.str.replace("\n", " ").replace("\r", "").trim
 		case _ => this.str
 	}
+	def toMD = tex2md.EnvAppMD(name, args.toMD, body.toMD)
 }
 
 case class YenTeX(text: String) extends TeX {
 	override def toString() = """\""".concat(text)
+	def toMD = tex2md.YenMD(text)
 }
 
 case class OptTeX(body: TeX) extends TeX {
 	override def toString() = "[%s]".format(body)
 	override def peel = body.toString()
+	def toMD = tex2md.OptMD(body.toMD)
 }
 
 case class ArgTeX(body: TeX) extends TeX {
 	override def toString() = "{%s}".format(body)
 	override def peel = body.toString()
+	def toMD = tex2md.ArgMD(body.toMD)
 }
 
 case class StrTeX(text: String) extends TeX {
 	override def toString() = text
+	def toMD = tex2md.StrMD(text)
 }
 
 case class EscTeX(char: String) extends TeX {
 	override def toString() = """\""".concat(char)
+	def toMD = tex2md.EscMD(char)
 }
 
 case class VrbTeX(del: String, body: String) extends TeX {
 	override def toString() = s"\\verb${del}${body}${del}"
+	def toMD = tex2md.VrbMD(body)
 }
 
 case class LstTeX(lang: TeX, body: String) extends TeX {
 	override def toString() = s"""\\begin{Verbatim}${lang}${body}\\end{Verbatim}"""
+	def toMD = tex2md.LstMD(lang.toMD, body)
 }
 
 case class MatTeX(body: TeX) extends TeX {
 	override def toString() = s"$$${body.toString().trim}$$"
+	def toMD = tex2md.MatMD(body.toMD)
 }
 
 case class DocTeX(body: Seq[TeX]) extends TeX {
 	override def toString() = body.mkString
+	def toMD = tex2md.DocMD(body.map(_.toMD))
 }

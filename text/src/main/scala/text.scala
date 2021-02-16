@@ -9,9 +9,9 @@ object TeXt {
 		val pdfs = args.lastOption.map(_.split('.').dropRight(1).mkString("."))
 		val docs = args.toSeq.map(path => Using(Source.fromFile(path))(_.getLines().mkString("\n")).get)
 		val text = docs.map(tex2tex.TeXPEGs.parseTeX(_)).mkString("\n")
-		val tree = tex2md.TeXPEGs.parseTeX(text)
+		val tree = tex2tex.TeXPEGs.parseTeX(text).toMD
 		val body = tree.cvt(tree)(false).str(tree)(false)
-		val head = tex2md.TeXPEGs.parseTeX("\\@maintitle").cvt(null)(false).str(null)(false)
+		val head = tex2tex.TeXPEGs.parseTeX("\\@maintitle").toMD.cvt(null)(false).str(null)(false)
 		"%s%n===%n".format(head) + body
 	}
 }
