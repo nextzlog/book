@@ -15,7 +15,7 @@ compileScala {
 }
 
 jar {
-	manifest.attributes 'Main-Class': 'text.TeXt'
+	manifest.attributes 'Main-Class': 'engine.TeXt'
 	from configurations.compileClasspath.collect {
 		it.isDirectory()? it: zipTree(it)
 	}

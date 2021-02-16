@@ -84,7 +84,7 @@ trait TeX {
 	/**
 	 * convert this expression into Markdown AST
 	 */
-	def toMD: decode.MD
+	def toST: middle.ST
 
 	final override def toString() = eval
 }
@@ -103,7 +103,7 @@ case class CmdAppTeX(name: YenTeX, args: DocTeX) extends TeX {
 		}
 	}).toString()
 	def view = "%s%s".format(name.view, args.view)
-	def toMD = decode.CmdAppMD(name.toMD, args.toMD)
+	def toST = middle.CmdAppST(name.toST, args.toST)
 }
 
 trait Param
@@ -173,7 +173,7 @@ abstract class DefCmdTeX(cmd: YenTeX, args: DocTeX) extends TeX {
 
 	def eval = ""
 	def view = "%s%s".format(cmd.view, args.view)
-	def toMD = decode.StrMD("")
+	def toST = middle.StrST("")
 }
 
 case class DocCmdTeX(cmd: YenTeX, args: DocTeX) extends DefCmdTeX(cmd, args) {
@@ -187,61 +187,61 @@ case class NewCmdTeX(cmd: YenTeX, args: DocTeX) extends DefCmdTeX(cmd, args) {
 case class EnvAppTeX(name: String, args: DocTeX, body: TeX) extends TeX {
 	def eval = """\begin{%1$s}%2$s%3$s\end{%1$s}""".format(name, args.eval, body.eval)
 	def view = """\begin{%1$s}%2$s%3$s\end{%1$s}""".format(name, args.view, body.view)
-	def toMD = decode.EnvAppMD(name, args.toMD, body.toMD, body)
+	def toST = middle.EnvAppST(middle.StrST(name), args.toST, body.toST, body)
 }
 
 case class YenTeX(text: String) extends TeX {
 	def eval = """\""".concat(text)
 	def view = eval
-	def toMD = decode.YenMD(text)
+	def toST = middle.YenST(text)
 }
 
 case class OptTeX(body: TeX) extends TeX {
 	def eval = "[%s]".format(body)
 	override def peel = body.eval
 	def view = "[%s]".format(body.view)
-	def toMD = decode.OptMD(body.toMD)
+	def toST = middle.OptST(body.toST)
 }
 
 case class ArgTeX(body: TeX) extends TeX {
 	def eval = "{%s}".format(body)
 	override def peel = body.eval
 	def view = "{%s}".format(body.view)
-	def toMD = decode.ArgMD(body.toMD)
+	def toST = middle.ArgST(body.toST)
 }
 
 case class StrTeX(text: String) extends TeX {
 	def eval = text
 	def view = text
-	def toMD = decode.StrMD(text)
+	def toST = middle.StrST(text)
 }
 
 case class EscTeX(char: String) extends TeX {
 	def eval = """\""".concat(char)
 	def view = eval
-	def toMD = decode.EscMD(char)
+	def toST = middle.EscST(char)
 }
 
 case class VrbTeX(del: String, body: String) extends TeX {
 	def eval = s"\\verb${del}${body}${del}"
 	def view = eval
-	def toMD = decode.VrbMD(body)
+	def toST = middle.VrbST(body)
 }
 
 case class LstTeX(lang: TeX, body: String) extends TeX {
 	def eval = s"""\\begin{Verbatim}${lang}${body}\\end{Verbatim}"""
 	def view = eval
-	def toMD = decode.LstMD(lang.toMD, body)
+	def toST = middle.LstST(lang.toST, body)
 }
 
 case class MatTeX(body: TeX) extends TeX {
 	def eval = s"$$${body.eval.trim}$$"
 	def view = s"$$${body.view.trim}$$"
-	def toMD = decode.MatMD(body)
+	def toST = middle.MatST(body)
 }
 
 case class DocTeX(body: Seq[TeX]) extends TeX {
 	def eval = body.map(_.eval).mkString
 	def view = body.map(_.view).mkString
-	def toMD = decode.DocMD(body.map(_.toMD))
+	def toST = middle.DocST(body.map(_.toST))
 }

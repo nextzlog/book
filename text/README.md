@@ -17,7 +17,8 @@ a naive LaTeX processor written in Scala, for conversion from LaTeX to Markdown,
 
 ```sh
 $ gradle build
-$ java -jar build/libs/text.jar
+$ java -jar build/libs/text.jar [cls file] [sty files] source.tex > temp.md
+$ pandoc temp.md -t gfm -N --webtex -F pandoc-crossref > target.md
 ```
 
 ## Contribution
