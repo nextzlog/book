@@ -11,6 +11,6 @@ object TeXt {
 		val docs = args.map(path => Source.fromFile(path).mkString).mkString
 		val text = docs.replace("\\maketitle", "\\title{\\@maintitle}")
 		val tree = TeXPEGs.parseTeX(TeXPEGs.parseTeX(text).eval).toMD
-		tree.cvt(tree)(false).str(tree)(false)
+		tree.cvt(tree).str(tree)
 	}
 }

@@ -93,7 +93,6 @@ case class CmdAppTeX(name: YenTeX, args: DocTeX) extends TeX {
 	def eval = (Binds.get(name) match {
 		case Some(cmd) => cmd.expand(this)
 		case None => name.text match {
-			case "mathchoice" => args.body.head.asArg.peel
 			case "def" => NewCmdTeX(name, args)
 			case "let" => NewCmdTeX(name, args)
 			case "gdef" => NewCmdTeX(name, args)
@@ -188,7 +187,7 @@ case class NewCmdTeX(cmd: YenTeX, args: DocTeX) extends DefCmdTeX(cmd, args) {
 case class EnvAppTeX(name: String, args: DocTeX, body: TeX) extends TeX {
 	def eval = """\begin{%1$s}%2$s%3$s\end{%1$s}""".format(name, args.eval, body.eval)
 	def view = """\begin{%1$s}%2$s%3$s\end{%1$s}""".format(name, args.view, body.view)
-	def toMD = decode.EnvAppMD(name, args.toMD, body.toMD)
+	def toMD = decode.EnvAppMD(name, args.toMD, body.toMD, body)
 }
 
 case class YenTeX(text: String) extends TeX {
@@ -238,7 +237,7 @@ case class LstTeX(lang: TeX, body: String) extends TeX {
 case class MatTeX(body: TeX) extends TeX {
 	def eval = s"$$${body.eval.trim}$$"
 	def view = s"$$${body.view.trim}$$"
-	def toMD = decode.MatMD(body.toMD)
+	def toMD = decode.MatMD(body)
 }
 
 case class DocTeX(body: Seq[TeX]) extends TeX {
