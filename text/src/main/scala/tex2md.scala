@@ -25,6 +25,7 @@ object Root extends Scope(Seq(
 	TextBfCmdMD,
 	TextItCmdMD,
 	TextTtCmdMD,
+	TitleCmdMD,
 	HFillCmdMD,
 	TopRuleCmdMD,
 	MidRuleCmdMD,
@@ -286,6 +287,12 @@ object TextItCmdMD extends CmdMD("textit") {
 			case true => s"""\\textit{${app.args.peel(scope)}}"""
 			case false => s"*${app.args.peel(scope)}*"
 		}
+	}
+}
+
+object TitleCmdMD extends CmdMD("title") {
+	def apply(app: CmdAppMD, scope: MD)(implicit isMath: Boolean) = new CmdBodyMD(app, this) {
+		override def str(scope: MD)(implicit isMath: Boolean) = s"${app.args.peel(scope)}\n===\n"
 	}
 }
 

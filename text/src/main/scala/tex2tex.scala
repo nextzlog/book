@@ -53,32 +53,57 @@ object ParamPEGs extends RegexParsers with PackratParsers {
 }
 
 object Binds {
-	val binds = MutableMap[YenTeX, NewCmdTeX]()
-	def get(name: YenTeX) = binds.get(name)
+	val binds = MutableMap[String, DefCmdTeX]()
+	def get(name: YenTeX) = binds.get(name.view)
 }
 
 trait TeX {
-	override def toString(): String
 	def asArg = this.asInstanceOf[ArgTeX]
 	def asOpt = this.asInstanceOf[OptTeX]
 	def asYen = this.asInstanceOf[YenTeX]
-	def peel = toString()
+
+	/**
+	 * eval this expression and returns TeX expression
+	 */
+	def eval: String
+
+	/**
+	 * eval this expression and returns body expression
+	 *
+	 * ex:
+	 * [123] returns 123
+	 * {123} returns 123
+	 */
+	def peel = eval
+
+	/**
+	 * returns TeX expression without evaluation
+	 */
+	def view: String
+
+	/**
+	 * convert this expression into Markdown AST
+	 */
 	def toMD: tex2md.MD
+
+	final override def toString() = eval
 }
 
 case class CmdAppTeX(name: YenTeX, args: DocTeX) extends TeX {
-	override def toString() = Binds.get(name) match {
+	def eval = (Binds.get(name) match {
 		case Some(cmd) => cmd.expand(this)
-		case None => name match {
-			case YenTeX("bm") => "%s%s".format(YenTeX("boldsymbol"), args)
-			case YenTeX("coloneqq") => ":=%s".format(args)
-			case YenTeX("hfill") => args.toString()
-			case YenTeX("displaystyle") => args.toString()
-			case YenTeX("mathchoice") => args.body.head.asArg.peel
-			case YenTeX("NewDocumentCommand") => NewCmdTeX(name, args).toString()
-			case name => "%s%s".format(name, args)
+		case None => name.text match {
+			case "mathchoice" => args.body.head.asArg.peel
+			case "def" => NewCmdTeX(name, args)
+			case "let" => NewCmdTeX(name, args)
+			case "gdef" => NewCmdTeX(name, args)
+			case "newcommand" => NewCmdTeX(name, args)
+			case "NewDocumentCommand" => DocCmdTeX(name, args)
+			case "DeclareMathOperator*" => NewCmdTeX(name, args)
+			case name => "%s%s".format(YenTeX(name), args)
 		}
-	}
+	}).toString()
+	def view = "%s%s".format(name.view, args.view)
 	def toMD = tex2md.CmdAppMD(name.toMD, args.toMD)
 }
 
@@ -87,12 +112,13 @@ trait Param
 case class ParamM(partype: String) extends Param
 case class ParamO(default: StrTeX) extends Param
 
-case class NewCmdTeX(cmd: YenTeX, args: DocTeX) extends TeX {
-	Binds.binds(args.body.head.asYen) = this
+abstract class DefCmdTeX(cmd: YenTeX, args: DocTeX) extends TeX {
+	Binds.binds(args.body.head.peel) = this
+
 	/**
 	 * command body
 	 */
-	def body = args.body.last.asArg.peel
+	def body = args.body.last.asArg.view.tail.init
 
 	/**
 	 * command body that can be used as a formatted String
@@ -102,7 +128,7 @@ case class NewCmdTeX(cmd: YenTeX, args: DocTeX) extends TeX {
 	/**
 	 * command parameters
 	 */
-	val pars = ParamPEGs.parseAll(args.body(1).asArg.peel)
+	def pars: Seq[Param]
 
 	/**
 	 * process command arguments
@@ -132,7 +158,7 @@ case class NewCmdTeX(cmd: YenTeX, args: DocTeX) extends TeX {
 		var exp = ""
 		do {
 			exp = tex
-			tex = TeXPEGs.parseTeX(tex).toString()
+			tex = TeXPEGs.parseTeX(tex).eval
 		} while(tex != exp)
 		tex
 	}
@@ -146,63 +172,77 @@ case class NewCmdTeX(cmd: YenTeX, args: DocTeX) extends TeX {
 		this.BODY.format(vals:_*).concat(rest.mkString)
 	}
 
-	override def toString() = cmd.toString().concat(args.toString())
-
+	def eval = ""//cmd.eval.concat(args.eval)
+	def view = "%s%s".format(cmd.view, args.view)
 	def toMD = tex2md.StrMD("")
 }
 
+case class DocCmdTeX(cmd: YenTeX, args: DocTeX) extends DefCmdTeX(cmd, args) {
+	def pars = ParamPEGs.parseAll(args.body(1).asArg.peel)
+}
+
+case class NewCmdTeX(cmd: YenTeX, args: DocTeX) extends DefCmdTeX(cmd, args) {
+	def pars = Seq.fill(args.body.tail.init.headOption.map(_.peel.toInt).getOrElse(0))(ParamM("M"))
+}
+
 case class EnvAppTeX(name: String, args: DocTeX, body: TeX) extends TeX {
-	def str = """\begin{%1$s}%2$s%3$s\end{%1$s}""".format(name, args, body)
-	override def toString() = name match {
-		case "equation" => this.str.replace("\n", " ").replace("\r", "").trim
-		case _ => this.str
-	}
+	def eval = """\begin{%1$s}%2$s%3$s\end{%1$s}""".format(name, args.eval, body.eval)
+	def view = """\begin{%1$s}%2$s%3$s\end{%1$s}""".format(name, args.view, body.view)
 	def toMD = tex2md.EnvAppMD(name, args.toMD, body.toMD)
 }
 
 case class YenTeX(text: String) extends TeX {
-	override def toString() = """\""".concat(text)
+	def eval = """\""".concat(text)
+	def view = eval
 	def toMD = tex2md.YenMD(text)
 }
 
 case class OptTeX(body: TeX) extends TeX {
-	override def toString() = "[%s]".format(body)
-	override def peel = body.toString()
+	def eval = "[%s]".format(body)
+	override def peel = body.eval
+	def view = "[%s]".format(body.view)
 	def toMD = tex2md.OptMD(body.toMD)
 }
 
 case class ArgTeX(body: TeX) extends TeX {
-	override def toString() = "{%s}".format(body)
-	override def peel = body.toString()
+	def eval = "{%s}".format(body)
+	override def peel = body.eval
+	def view = "{%s}".format(body.view)
 	def toMD = tex2md.ArgMD(body.toMD)
 }
 
 case class StrTeX(text: String) extends TeX {
-	override def toString() = text
+	def eval = text
+	def view = text
 	def toMD = tex2md.StrMD(text)
 }
 
 case class EscTeX(char: String) extends TeX {
-	override def toString() = """\""".concat(char)
+	def eval = """\""".concat(char)
+	def view = eval
 	def toMD = tex2md.EscMD(char)
 }
 
 case class VrbTeX(del: String, body: String) extends TeX {
-	override def toString() = s"\\verb${del}${body}${del}"
+	def eval = s"\\verb${del}${body}${del}"
+	def view = eval
 	def toMD = tex2md.VrbMD(body)
 }
 
 case class LstTeX(lang: TeX, body: String) extends TeX {
-	override def toString() = s"""\\begin{Verbatim}${lang}${body}\\end{Verbatim}"""
+	def eval = s"""\\begin{Verbatim}${lang}${body}\\end{Verbatim}"""
+	def view = eval
 	def toMD = tex2md.LstMD(lang.toMD, body)
 }
 
 case class MatTeX(body: TeX) extends TeX {
-	override def toString() = s"$$${body.toString().trim}$$"
+	def eval = s"$$${body.eval.trim}$$"
+	def view = s"$$${body.view.trim}$$"
 	def toMD = tex2md.MatMD(body.toMD)
 }
 
 case class DocTeX(body: Seq[TeX]) extends TeX {
-	override def toString() = body.mkString
+	def eval = body.map(_.eval).mkString
+	def view = body.map(_.view).mkString
 	def toMD = tex2md.DocMD(body.map(_.toMD))
 }
