@@ -4,19 +4,19 @@ import encode.TeX
 
 trait MD {
 	def str(scope: MD): String
-	def lab(p: String, scope: MD): Seq[String]
+	def lab(scope: MD): Seq[String]
 	def cap(scope: MD): Seq[String]
 	def mid: Boolean = false
 }
 
 abstract class LeafMD extends MD {
-	override def lab(p: String, scope: MD): Seq[String] = Seq()
+	override def lab(scope: MD): Seq[String] = Seq()
 	override def cap(scope: MD): Seq[String] = Seq()
 }
 
 abstract class TreeMD(children: MD*) extends MD {
 	override def mid = children.exists(_.mid)
-	def lab(p: String, scope: MD) = children.map(_.lab(p, scope)).flatten
+	def lab(scope: MD) = children.map(_.lab(scope)).flatten
 	def cap(scope: MD) = children.map(_.cap(scope)).flatten
 }
 
@@ -80,7 +80,7 @@ trait Labels {
 }
 
 case class Label(args: DocMD) extends CmdBodyMD(args) with Labels {
-	override def lab(p: String, scope: MD) = Seq(label(args, scope)).filter(_.startsWith(p))
+	override def lab(scope: MD) = Seq(label(args, scope))
 	override def str(scope: MD) = ""
 }
 
@@ -113,7 +113,7 @@ case class IncludeGraphics(args: DocMD) extends CmdBodyMD(args) {
 	override def str(scope: MD) = {
 		val path = args.body.last.str(scope).replaceAll(".eps$", ".svg")
 		val cap = scope.cap(scope).headOption.getOrElse("")
-		val lab = scope.lab("fig:", scope).headOption.map("{#%s}".format(_)).getOrElse("")
+		val lab = scope.lab(scope).headOption.map("{#%s}".format(_)).getOrElse("")
 		"![%s](%s)%s".format(cap, path, lab)
 	}
 }
@@ -126,7 +126,7 @@ case class SubFloat(args: DocMD) extends CmdBodyMD(args) {
 case class Chapter(args: DocMD) extends CmdBodyMD(args) {
 	override def str(scope: MD) = {
 		val tag = s"# ${args.str(scope)}"
-		val lab = this.lab("sec:", scope).headOption.map(" {#%s}".format(_)).getOrElse("")
+		val lab = this.lab(scope).headOption.map(" {#%s}".format(_)).getOrElse("")
 		tag.concat(lab)
 	}
 }
@@ -134,7 +134,7 @@ case class Chapter(args: DocMD) extends CmdBodyMD(args) {
 case class Section(args: DocMD) extends CmdBodyMD(args) {
 	override def str(scope: MD) = {
 		val tag = s"## ${args.str(scope)}"
-		val lab = this.lab("sec:", scope).headOption.map(" {#%s}".format(_)).getOrElse("")
+		val lab = this.lab(scope).headOption.map(" {#%s}".format(_)).getOrElse("")
 		tag.concat(lab)
 	}
 }
@@ -142,7 +142,7 @@ case class Section(args: DocMD) extends CmdBodyMD(args) {
 case class SubSection(args: DocMD) extends CmdBodyMD(args) {
 	override def str(scope: MD) = {
 		val tag = s"### ${args.str(scope)}"
-		val lab = this.lab("sec:", scope).headOption.map(" {#%s}".format(_)).getOrElse("")
+		val lab = this.lab(scope).headOption.map(" {#%s}".format(_)).getOrElse("")
 		tag.concat(lab)
 	}
 }
@@ -185,14 +185,14 @@ case class Document(args: DocMD, body: MD, tex: TeX) extends EnvBodyMD(body) {
 
 case class Equation(args: DocMD, body: MD, tex: TeX) extends EnvBodyMD(body) {
 	override def str(scope: MD) = {
-		val lab = this.lab("eq:", scope).headOption.map(" {#%s}".format(_)).getOrElse("")
+		val lab = this.lab(scope).headOption.map(" {#%s}".format(_)).getOrElse("")
 		s"$$$$${tex.view}$$$$${lab}"
 	}
 }
 
 case class Figure(args: DocMD, body: MD, tex: TeX) extends EnvBodyMD(body) {
 	override def str(scope: MD) = body.str(this).trim match {
-		case body if cap(scope).size > 1 => s"<div id='${lab("fig:", scope).last}'>\n$body\n\n${cap(scope).last}\n</div>"
+		case body if cap(scope).size > 1 => s"<div id='${lab(scope).last}'>\n$body\n\n${cap(scope).last}\n</div>"
 		case body => body
 	}
 }
@@ -209,7 +209,7 @@ case class Tabular(args: DocMD, body: MD, tex: TeX) extends EnvBodyMD(body) {
 		val rule = Seq.fill(ncol)("---").mkString("|")
 		val tail = if(body.mid) rows.tail else rows
 		val cap = scope.cap(scope).headOption.getOrElse("")
-		val lab = scope.lab("tbl:", scope).headOption.map("{#%s}".format(_)).getOrElse("")
+		val lab = scope.lab(scope).headOption.map("{#%s}".format(_)).getOrElse("")
 		val data = (head :+ rule) ++ tail.filterNot(_.trim.isEmpty)
 		(data.map("|%s|".format(_)) :+ ": %s %s".format(cap, lab)).mkString("\n")
 	}

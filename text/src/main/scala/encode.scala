@@ -99,6 +99,7 @@ case class CmdAppTeX(name: YenTeX, args: DocTeX) extends TeX {
 			case "newcommand" => NewCmdTeX(name, args)
 			case "NewDocumentCommand" => DocCmdTeX(name, args)
 			case "DeclareMathOperator*" => NewCmdTeX(name, args)
+			case "mathchoice" => args.body.head.asArg.peel
 			case name => "%s%s".format(YenTeX(name), args)
 		}
 	}).toString()
