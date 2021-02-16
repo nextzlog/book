@@ -2,7 +2,7 @@ package text
 
 import scala.io.Source
 import scala.util.Using
-import tex2tex.TeXPEGs
+import encode.TeXPEGs
 
 object TeXt {
 	def main(args: Array[String]): Unit = println(process(args))
